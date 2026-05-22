@@ -44,6 +44,7 @@ add_executable(tensor_group_repair src/tensor_group_repair.cpp)
 add_executable(tensor_group_codebook src/tensor_group_codebook.cpp)
 add_executable(tensor_group_bloom_delta src/tensor_group_bloom_delta.cpp)
 add_executable(tensor_group_bitplane_repair src/tensor_group_bitplane_repair.cpp)
+add_executable(tensor_group_prefix_mask_repair src/tensor_group_prefix_mask_repair.cpp)
 
 if(EXISTS "${TENSOR_ANALYZER_CAMP_INCLUDE_DIR}/camp/concepts.hpp")
     target_include_directories(tensor_analyzer BEFORE PRIVATE
@@ -55,6 +56,8 @@ if(EXISTS "${TENSOR_ANALYZER_CAMP_INCLUDE_DIR}/camp/concepts.hpp")
     target_include_directories(tensor_group_bloom_delta BEFORE PRIVATE
         "${TENSOR_ANALYZER_CAMP_INCLUDE_DIR}")
     target_include_directories(tensor_group_bitplane_repair BEFORE PRIVATE
+        "${TENSOR_ANALYZER_CAMP_INCLUDE_DIR}")
+    target_include_directories(tensor_group_prefix_mask_repair BEFORE PRIVATE
         "${TENSOR_ANALYZER_CAMP_INCLUDE_DIR}")
 endif()
 
@@ -107,4 +110,7 @@ target_link_libraries(tensor_group_bloom_delta PRIVATE
 )
 
 target_link_libraries(tensor_group_bitplane_repair PRIVATE
+)
+
+target_link_libraries(tensor_group_prefix_mask_repair PRIVATE
 )

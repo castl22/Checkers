@@ -393,7 +393,7 @@ TensorCodebookResult encode_tensor_with_codebook(const TensorEntry& tensor,
 void write_tensor_report(const fs::path& output_path, const std::vector<TensorCodebookResult>& rows)
 {
     std::ofstream stream(output_path);
-    stream << "state_type,category,group_id,layer,is_representative,original_size_mb,payload_size_mb,codebook_size_mb_charged,exact_reconstruction_size_mb,hits,misses,hit_fraction,code_width_bytes,exact_reconstruction_ratio,time_ms\n";
+    stream << "state_type,category,group_id,layer,is_representative,original_size_mb,payload_size_mb,codebook_size_mb_charged,compressed_size_mb,hits,misses,hit_fraction,code_width_bytes,compression_ratio,time_ms\n";
     for (const auto& row : rows) {
         stream << row.state_type << ','
                << row.category << ','
@@ -416,7 +416,7 @@ void write_tensor_report(const fs::path& output_path, const std::vector<TensorCo
 void write_group_report(const fs::path& output_path, const std::vector<GroupCodebookSummary>& rows)
 {
     std::ofstream stream(output_path);
-    stream << "state_type,category,group_id,layers,representative_layer,codebook_value_count,code_width_bytes,codebook_size_mb,original_group_size_mb,payload_group_size_mb,exact_reconstruction_group_size_mb,total_hits,total_misses,average_hit_fraction,exact_reconstruction_ratio,total_time_ms\n";
+    stream << "state_type,category,group_id,layers,representative_layer,codebook_value_count,code_width_bytes,codebook_size_mb,original_group_size_mb,payload_group_size_mb,compressed_group_size_mb,total_hits,total_misses,average_hit_fraction,compression_ratio,total_time_ms\n";
     for (const auto& row : rows) {
         std::stringstream layers_stream;
         for (std::size_t index = 0; index < row.layers.size(); ++index) {
@@ -456,16 +456,16 @@ void write_checkpoint_summary(const fs::path& output_path,
     stream << "payload_codec: zstd\n";
     stream << "max_codebook_values: " << config.max_codebook_values << '\n';
     stream << "checkpoint_original_size_mb: " << bytes_to_mb(summary.original_bytes) << '\n';
-    stream << "checkpoint_exact_reconstruction_size_mb: " << bytes_to_mb(summary.exact_reconstruction_bytes) << '\n';
-    stream << "checkpoint_exact_reconstruction_ratio: " << summary.exact_reconstruction_ratio << '\n';
+    stream << "checkpoint_compressed_size_mb: " << bytes_to_mb(summary.exact_reconstruction_bytes) << '\n';
+    stream << "checkpoint_compression_ratio: " << summary.exact_reconstruction_ratio << '\n';
     stream << "grouped_tensor_count: " << summary.grouped_tensor_count << '\n';
     stream << "uncompressed_tensor_count: " << summary.uncompressed_tensor_count << '\n';
     stream << "codebook_size_mb_total: " << bytes_to_mb(summary.total_codebook_bytes) << "\n\n";
 
     for (const auto& [state_type, totals] : state_type_totals) {
         stream << state_type << ": original_size_mb=" << bytes_to_mb(totals.first)
-               << ", exact_reconstruction_size_mb=" << bytes_to_mb(totals.second)
-               << ", exact_reconstruction_ratio=" << safe_divide(static_cast<double>(totals.first), static_cast<double>(totals.second))
+               << ", compressed_size_mb=" << bytes_to_mb(totals.second)
+               << ", compression_ratio=" << safe_divide(static_cast<double>(totals.first), static_cast<double>(totals.second))
                << '\n';
     }
 }
