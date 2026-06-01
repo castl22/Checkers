@@ -63,7 +63,6 @@ void MemoryManager::reset() {
     }
     registry_.clear();
     ordered_names_.clear();
-    current_batch_.clear();
     buffer_plans_.clear();
     active_slabs_.clear();
     batch_device_records_.clear();
@@ -72,36 +71,50 @@ void MemoryManager::reset() {
     discovered_count_ = 0;
     skipped_count_ = 0;
     processed_batch_count_ = 0;
+    background_thread_count_ = 1;
+    batch_size_ = 1;
+    category_stats_ = {};
     total_pass1_ms_ = 0.0;
     total_allocation_ms_ = 0.0;
     total_kernel_ms_ = 0.0;
     logger_.reset();
 }
 
-void MemoryManager::begin_pipeline(std::shared_ptr<RankLogger> logger) {
+void MemoryManager::begin_pipeline(std::shared_ptr<RankLogger> logger,
+                                   size_t background_threads,
+                                   size_t batch_size) {
     finalize_pipeline();
     logger_ = std::move(logger);
     {
         std::lock_guard lock(queue_mutex_);
         accepting_submissions_ = true;
         stop_worker_ = false;
+        background_thread_count_ = std::max<size_t>(1, background_threads);
+        batch_size_ = std::max<size_t>(1, batch_size);
     }
-    worker_thread_ = std::thread(&MemoryManager::worker_loop, this);
+    worker_threads_.clear();
+    worker_threads_.reserve(background_thread_count_);
+    for (size_t worker_index = 0; worker_index < background_thread_count_; ++worker_index) {
+        worker_threads_.emplace_back(&MemoryManager::worker_loop, this);
+    }
 }
 
 void MemoryManager::finalize_pipeline() {
     {
         std::lock_guard lock(queue_mutex_);
-        if (!accepting_submissions_ && !worker_thread_.joinable()) {
+        if (!accepting_submissions_ && worker_threads_.empty()) {
             return;
         }
         accepting_submissions_ = false;
         stop_worker_ = true;
     }
     queue_cv_.notify_all();
-    if (worker_thread_.joinable()) {
-        worker_thread_.join();
+    for (auto& worker : worker_threads_) {
+        if (worker.joinable()) {
+            worker.join();
+        }
     }
+    worker_threads_.clear();
 }
 
 void MemoryManager::submit_tensor(const std::string& name, void* existing_device_ptr, size_t byte_size, TensorMetadata meta) {
@@ -138,6 +151,26 @@ void MemoryManager::submit_tensor(const std::string& name, void* existing_device
     queue_cv_.notify_one();
 }
 
+void MemoryManager::note_discovery(const TensorMetadata& meta, double discovery_ms) {
+    const size_t category_idx = tensor_category_index(meta.category);
+    if (category_idx >= tracked_tensor_category_count) {
+        return;
+    }
+
+    std::unique_lock lock(registry_mutex_);
+    TensorCategoryStats& stats = category_stats_[category_idx];
+    ++stats.tensor_count;
+    stats.tensor_bytes += meta.byte_size;
+    stats.discovery_ms += discovery_ms;
+    if (!stats.has_sample) {
+        stats.sample_name = meta.name;
+        stats.sample_dtype = meta.data_type;
+        stats.sample_shape = meta.shape;
+        stats.sample_bytes = meta.byte_size;
+        stats.has_sample = true;
+    }
+}
+
 void MemoryManager::flush_pipeline() {
     finalize_pipeline();
 }
@@ -158,75 +191,83 @@ void MemoryManager::worker_loop() {
             }
         }
 
-        for (auto& item : ready_items) {
-            auto resource = std::make_unique<TensorResource>(item.device_ptr, item.byte_size, std::move(item.meta), device_allocator_);
-
-            {
-                std::unique_lock lock(registry_mutex_);
-                ordered_names_.push_back(item.name);
-                current_batch_.push_back(item.name);
-                registry_[item.name] = std::move(resource);
-            }
-
-            if (current_batch_.size() >= 10) {
-                process_current_batch();
-            }
+        if (!ready_items.empty()) {
+            process_batch(std::move(ready_items));
         }
-    }
-
-    if (!current_batch_.empty()) {
-        process_current_batch();
     }
 }
 
 void MemoryManager::drain_pending_queue_locked(std::vector<PendingTensor>& items) {
-    while (!pending_tensors_.empty()) {
+    const size_t target_batch_size = std::max<size_t>(1, batch_size_);
+    while (!pending_tensors_.empty() && items.size() < target_batch_size) {
         items.push_back(std::move(pending_tensors_.front()));
         pending_tensors_.pop_front();
     }
 }
 
-// ------------------------------------------------------------------ //
-// THE PIPELINE ENGINE: Processes a cluster of 10 tensors concurrently
-// ------------------------------------------------------------------ //
-void MemoryManager::process_current_batch() {
-    std::unique_lock lock(registry_mutex_); // Scope lock for processing
-    if (current_batch_.empty()) return;
+void MemoryManager::process_batch(std::vector<PendingTensor> items) {
+    if (items.empty()) {
+        return;
+    }
 
     const auto pass1_start = std::chrono::steady_clock::now();
-    size_t batch_size = current_batch_.size();
+    const size_t batch_size = items.size();
     std::vector<BufferPlan> batch_plans;
     batch_plans.reserve(batch_size);
     size_t batch_slab_bytes = 0;
+    std::vector<std::string> batch_names;
+    batch_names.reserve(batch_size);
+    std::vector<TensorResource*> batch_resources;
+    batch_resources.reserve(batch_size);
 
-    // ==========================================================
-    // PASS 1: SCAN AND PLAN (Isolated to this local batch cluster)
-    // ==========================================================
-    for (const auto& name : current_batch_) {
-        TensorResource& tr = *registry_[name];
+    {
+        std::unique_lock lock(registry_mutex_);
+        for (auto& item : items) {
+            auto resource = std::make_unique<TensorResource>(item.device_ptr, item.byte_size, std::move(item.meta), device_allocator_);
+            TensorResource* resource_ptr = resource.get();
+            ordered_names_.push_back(item.name);
+            batch_names.push_back(item.name);
+            registry_[item.name] = std::move(resource);
+            batch_resources.push_back(resource_ptr);
+        }
+    }
+
+    for (size_t index = 0; index < batch_size; ++index) {
+        TensorResource& tr = *batch_resources[index];
         TensorMetadata& meta = tr.get_meta_mut();
-        
-        // Check contiguity layouts immediately on the host side
+
+        const auto contiguity_start = std::chrono::steady_clock::now();
+
         check_and_fix_contiguity(tr);
         if (meta.histogram_bins == 0) meta.histogram_bins = default_histogram_bins_;
 
-        // If the tensor is non-contiguous, invoke the processing kernel right now
         if (meta.contiguity == Contiguity::NonContiguous) {
-            tr.make_contiguous(); 
+            tr.make_contiguous();
         }
+        const auto contiguity_end = std::chrono::steady_clock::now();
 
+        const auto planning_start = contiguity_end;
         BufferPlan plan = compute_buffer_plan(meta);
+        const auto planning_end = std::chrono::steady_clock::now();
         meta.buffer_histogram_bytes = plan.histogram_bytes;
         meta.buffer_moments_bytes   = plan.moments_bytes;
         meta.buffer_minmax_bytes    = plan.minmax_bytes;
         meta.buffer_total_bytes     = plan.total_bytes;
+
+        const size_t category_idx = tensor_category_index(meta.category);
+        if (category_idx < tracked_tensor_category_count) {
+            std::unique_lock lock(registry_mutex_);
+            TensorCategoryStats& stats = category_stats_[category_idx];
+            stats.contiguous_ms += std::chrono::duration<double, std::milli>(contiguity_end - contiguity_start).count();
+            stats.planning_ms += std::chrono::duration<double, std::milli>(planning_end - planning_start).count();
+            stats.planned_buffer_bytes += plan.total_bytes;
+        }
 
         batch_plans.push_back(plan);
         batch_slab_bytes += plan.total_bytes;
     }
 
     if (batch_slab_bytes == 0) {
-        current_batch_.clear();
         return;
     }
 
@@ -235,9 +276,13 @@ void MemoryManager::process_current_batch() {
     // ==========================================================
     // PASS 2: ALLOCATE ONE SLAB & PARCEL OUT OFFSETS FOR THIS BATCH
     // ==========================================================
+    std::lock_guard gpu_lock(gpu_ops_mutex_);
     const auto alloc_start = std::chrono::steady_clock::now();
     void* batch_slab_base = device_allocator_.allocate(batch_slab_bytes);
-    active_slabs_.push_back(batch_slab_base);
+    {
+        std::unique_lock lock(registry_mutex_);
+        active_slabs_.push_back(batch_slab_base);
+    }
 
     auto& rm = umpire::ResourceManager::getInstance();
     rm.memset(batch_slab_base, 0, batch_slab_bytes);
@@ -248,12 +293,10 @@ void MemoryManager::process_current_batch() {
     std::vector<DeviceTensorRecord> host_records(batch_size);
 
     for (size_t i = 0; i < batch_size; ++i) {
-        const std::string& name = current_batch_[i];
-        TensorResource& tr = *registry_[name];
+        TensorResource& tr = *batch_resources[i];
         TensorMetadata& meta = tr.get_meta_mut();
         BufferPlan& plan = batch_plans[i];
 
-        // Slice up the shared local slab block
         plan.slab_offset = cursor;
         meta.d_histogram = reinterpret_cast<uint32_t*>(slab_bytes_ptr + cursor);
         cursor += align_up(plan.histogram_bytes, alignment_bytes_);
@@ -264,7 +307,6 @@ void MemoryManager::process_current_batch() {
         meta.d_minmax    = reinterpret_cast<float*>(slab_bytes_ptr + cursor);
         cursor += align_up(plan.minmax_bytes, alignment_bytes_);
 
-        // Log to our backend compilation record structure
         DeviceTensorRecord& rec = host_records[i];
         rec.d_data         = static_cast<float*>(tr.get_ptr());
         rec.d_histogram    = meta.d_histogram;
@@ -275,14 +317,22 @@ void MemoryManager::process_current_batch() {
         rec.data_type      = static_cast<uint8_t>(meta.data_type);
         rec.contiguity     = static_cast<uint8_t>(meta.contiguity);
 
-        // Keep a snapshot copy of the plan in global manager metrics tracking
-        buffer_plans_.push_back(plan);
+    }
+
+    {
+        std::unique_lock lock(registry_mutex_);
+        for (const auto& plan : batch_plans) {
+            buffer_plans_.push_back(plan);
+        }
     }
 
     // Allocate an array descriptor for this block on the device
     DeviceTensorRecord* d_batch_recs = static_cast<DeviceTensorRecord*>(
         device_allocator_.allocate(batch_size * sizeof(DeviceTensorRecord)));
-    batch_device_records_.push_back(d_batch_recs);
+    {
+        std::unique_lock lock(registry_mutex_);
+        batch_device_records_.push_back(d_batch_recs);
+    }
 
     // Umpire does not own the raw STL buffer backing host_records, so use the device
     // runtime directly for this host-to-device descriptor upload.
@@ -334,16 +384,41 @@ void MemoryManager::process_current_batch() {
     const double pass1_ms = std::chrono::duration<double, std::milli>(pass1_end - pass1_start).count();
     const double allocation_ms = std::chrono::duration<double, std::milli>(alloc_end - alloc_start).count();
     const double kernel_ms = std::chrono::duration<double, std::milli>(kernel_end - kernel_start).count();
-    total_pass1_ms_ += pass1_ms;
-    total_allocation_ms_ += allocation_ms;
-    total_kernel_ms_ += kernel_ms;
-    ++processed_batch_count_;
-    if (logger_) {
-        logger_->log_batch_metrics(processed_batch_count_, batch_size, batch_slab_bytes, pass1_ms, allocation_ms, kernel_ms);
-    }
+    size_t batch_index = 0;
+    {
+        std::unique_lock lock(registry_mutex_);
+        std::array<size_t, tracked_tensor_category_count> category_tensor_counts{};
+        std::array<size_t, tracked_tensor_category_count> category_buffer_bytes{};
+        for (size_t i = 0; i < batch_size; ++i) {
+            const TensorMetadata& meta = batch_resources[i]->get_meta();
+            const size_t category_idx = tensor_category_index(meta.category);
+            if (category_idx >= tracked_tensor_category_count) {
+                continue;
+            }
+            ++category_tensor_counts[category_idx];
+            category_buffer_bytes[category_idx] += batch_plans[i].total_bytes;
+        }
 
-    // Clear the active processing tracking cluster queue so the frontend can fill it again
-    current_batch_.clear();
+        for (size_t category_idx = 0; category_idx < tracked_tensor_category_count; ++category_idx) {
+            if (category_tensor_counts[category_idx] == 0) {
+                continue;
+            }
+            TensorCategoryStats& stats = category_stats_[category_idx];
+            ++stats.batch_count;
+            if (batch_slab_bytes > 0) {
+                const double buffer_share = static_cast<double>(category_buffer_bytes[category_idx]) / static_cast<double>(batch_slab_bytes);
+                stats.allocation_ms += allocation_ms * buffer_share;
+            }
+            stats.kernel_ms += kernel_ms * (static_cast<double>(category_tensor_counts[category_idx]) / static_cast<double>(batch_size));
+        }
+
+        total_pass1_ms_ += pass1_ms;
+        total_allocation_ms_ += allocation_ms;
+        total_kernel_ms_ += kernel_ms;
+        ++processed_batch_count_;
+        batch_index = processed_batch_count_;
+    }
+    (void)batch_index;
 }
 
 BufferPlan MemoryManager::compute_buffer_plan(const TensorMetadata& meta) const {
@@ -444,6 +519,16 @@ double MemoryManager::get_total_allocation_ms() const {
 double MemoryManager::get_total_kernel_ms() const {
     std::shared_lock lock(registry_mutex_);
     return total_kernel_ms_;
+}
+
+size_t MemoryManager::batch_count() const {
+    std::shared_lock lock(registry_mutex_);
+    return processed_batch_count_;
+}
+
+std::array<TensorCategoryStats, tracked_tensor_category_count> MemoryManager::get_category_stats() const {
+    std::shared_lock lock(registry_mutex_);
+    return category_stats_;
 }
 
 void MemoryManager::set_skipped_count(size_t skipped_count) {

@@ -78,7 +78,9 @@ public:
     static MemoryManager& instance();
 
     void reset();
-    void begin_pipeline(std::shared_ptr<RankLogger> logger);
+    void begin_pipeline(std::shared_ptr<RankLogger> logger,
+                        size_t background_threads = 1,
+                        size_t batch_size = 1);
     void finalize_pipeline();
 
     // ---- Registration & Pipelined Ingestion ---- //
@@ -106,10 +108,13 @@ public:
     double get_total_pass1_ms() const;
     double get_total_allocation_ms() const;
     double get_total_kernel_ms() const;
+    size_t batch_count() const;
+    std::array<TensorCategoryStats, tracked_tensor_category_count> get_category_stats() const;
 
     // Reporting
     void report_memory_usage() const;
     void set_skipped_count(size_t skipped_count);
+    void note_discovery(const TensorMetadata& meta, double discovery_ms);
 
     // ---- Configuration ---- //
     void set_default_histogram_bins(size_t bins) { default_histogram_bins_ = bins; }
@@ -128,7 +133,7 @@ private:
 
     // Internal Pipeline Processing Engine
     void worker_loop();
-    void process_current_batch();
+    void process_batch(std::vector<PendingTensor> items);
     void drain_pending_queue_locked(std::vector<PendingTensor>& items);
 
     // Helpers
@@ -140,18 +145,18 @@ private:
 
     // Registry & Thread Safety Structures
     mutable std::shared_mutex                                         registry_mutex_;
+    mutable std::mutex            gpu_ops_mutex_;
     std::unordered_map<std::string, std::unique_ptr<TensorResource>> registry_;
     std::vector<std::string>                                         ordered_names_;   // Global stable iteration tracking order
 
     mutable std::mutex            queue_mutex_;
     std::condition_variable       queue_cv_;
     std::deque<PendingTensor>     pending_tensors_;
-    std::thread                   worker_thread_;
+    std::vector<std::thread>      worker_threads_;
     bool                          accepting_submissions_ = false;
     bool                          stop_worker_ = false;
 
     // Batch Allocation Pipelines
-    std::vector<std::string>        current_batch_;           // Active string names assigned to the current batch slice
     std::vector<BufferPlan>         buffer_plans_;            // Shared repository of calculated tensor layouts
     std::vector<void*>              active_slabs_;            // Managed list of all allocated local device slabs
     std::vector<DeviceTensorRecord*> batch_device_records_;   // Tracks device array block addresses per batch segment
@@ -172,6 +177,9 @@ private:
     size_t discovered_count_       = 0;
     size_t skipped_count_          = 0;
     size_t processed_batch_count_  = 0;
+    size_t background_thread_count_ = 1;
+    size_t batch_size_             = 1;
+    std::array<TensorCategoryStats, tracked_tensor_category_count> category_stats_{};
     double total_pass1_ms_         = 0.0;
     double total_allocation_ms_    = 0.0;
     double total_kernel_ms_        = 0.0;

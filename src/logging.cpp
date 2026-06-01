@@ -139,16 +139,10 @@ void RankLogger::log_tensor_discovered(const std::string& source,
                                        const TensorMetadata& meta,
                                        void* ptr,
                                        size_t byte_size) {
-    std::ostringstream stream;
-    stream << "[discovery] source=" << source
-           << " name=" << meta.name
-           << " dtype=" << format_dtype(meta.data_type)
-           << " shape=" << format_shape(meta)
-           << " bytes=" << byte_size
-        << " logical_shape=" << format_logical_shape(meta)
-        << " logical_bytes=" << (meta.logical_byte_size == 0 ? byte_size : meta.logical_byte_size)
-           << " ptr=" << ptr;
-    write_line(stream.str());
+    (void)source;
+    (void)meta;
+    (void)ptr;
+    (void)byte_size;
 }
 
 void RankLogger::log_tensor_skipped(const std::string& name, const std::string& reason) {
@@ -161,38 +155,88 @@ void RankLogger::log_batch_metrics(size_t batch_index,
                                    double pass1_ms,
                                    double allocation_ms,
                                    double kernel_ms) {
-    std::ostringstream stream;
-    stream << "[batch] index=" << batch_index
-           << " tensors=" << tensor_count
-           << " buffer_bytes=" << buffer_bytes
-           << " pass1_ms=" << pass1_ms
-           << " allocation_ms=" << allocation_ms
-           << " kernel_ms=" << kernel_ms;
-    write_line(stream.str());
+    (void)batch_index;
+    (void)tensor_count;
+    (void)buffer_bytes;
+    (void)pass1_ms;
+    (void)allocation_ms;
+    (void)kernel_ms;
 }
 
-void RankLogger::log_summary(size_t discovered_tensors,
+void RankLogger::log_summary(const std::array<TensorCategoryStats, tracked_tensor_category_count>& category_stats,
                              size_t skipped_tensors,
-                             size_t tracked_tensors,
                              size_t slab_count,
-                             size_t tensor_bytes,
-                             size_t buffer_bytes,
-                             double discovery_ms,
-                             double pass1_ms,
-                             double allocation_ms,
-                             double kernel_ms) {
-    std::ostringstream stream;
-    stream << "[summary] discovered=" << discovered_tensors
-           << " skipped=" << skipped_tensors
-           << " tracked=" << tracked_tensors
-           << " slabs=" << slab_count
-           << " tensor_bytes=" << tensor_bytes
-           << " buffer_bytes=" << buffer_bytes
-           << " discovery_ms=" << discovery_ms
-           << " pass1_ms=" << pass1_ms
-           << " allocation_ms=" << allocation_ms
-           << " kernel_ms=" << kernel_ms;
-    write_line(stream.str());
+                             size_t batch_count) {
+    size_t total_tensors = 0;
+    size_t total_tensor_bytes = 0;
+    size_t total_buffer_bytes = 0;
+
+    write_line("[summary] rank-local shard summary begin");
+    for (size_t index = 0; index < tracked_tensor_category_count; ++index) {
+        const TensorCategory category = static_cast<TensorCategory>(index);
+        const TensorCategoryStats& stats = category_stats[index];
+        total_tensors += stats.tensor_count;
+        total_tensor_bytes += stats.tensor_bytes;
+        total_buffer_bytes += stats.planned_buffer_bytes;
+
+        if (stats.has_sample) {
+            std::ostringstream shape_stream;
+            shape_stream << "[";
+            for (size_t shape_index = 0; shape_index < stats.sample_shape.size(); ++shape_index) {
+                if (shape_index > 0) {
+                    shape_stream << ",";
+                }
+                shape_stream << stats.sample_shape[shape_index];
+            }
+            shape_stream << "]";
+
+            std::ostringstream sample_stream;
+            sample_stream << "[sample] category=" << tensor_category_name(category)
+                          << " name=" << stats.sample_name
+                          << " dtype=" << format_dtype(stats.sample_dtype)
+                          << " shape=" << shape_stream.str()
+                          << " bytes=" << stats.sample_bytes;
+            write_line(sample_stream.str());
+        }
+
+        const double batch_denom = stats.batch_count == 0 ? 1.0 : static_cast<double>(stats.batch_count);
+        const double tensor_denom = stats.tensor_count == 0 ? 1.0 : static_cast<double>(stats.tensor_count);
+
+        std::ostringstream stream;
+        stream << "[summary][" << tensor_category_name(category) << "]"
+               << " tensors=" << stats.tensor_count
+               << " tensor_bytes=" << stats.tensor_bytes
+               << " discovery_ms_total=" << stats.discovery_ms
+               << " discovery_ms_mean_batch=" << (stats.discovery_ms / batch_denom)
+               << " discovery_ms_mean_tensor=" << (stats.discovery_ms / tensor_denom)
+               << " contiguous_ms_total=" << stats.contiguous_ms
+               << " contiguous_ms_mean_batch=" << (stats.contiguous_ms / batch_denom)
+               << " contiguous_ms_mean_tensor=" << (stats.contiguous_ms / tensor_denom)
+               << " planning_ms_total=" << stats.planning_ms
+               << " planning_ms_mean_batch=" << (stats.planning_ms / batch_denom)
+               << " planning_ms_mean_tensor=" << (stats.planning_ms / tensor_denom)
+               << " buffer_bytes_total=" << stats.planned_buffer_bytes
+               << " buffer_bytes_mean_batch=" << (stats.planned_buffer_bytes / batch_denom)
+               << " buffer_bytes_mean_tensor=" << (stats.tensor_count == 0 ? 0.0 : static_cast<double>(stats.planned_buffer_bytes) / tensor_denom)
+               << " allocation_ms_total=" << stats.allocation_ms
+               << " allocation_ms_mean_batch=" << (stats.allocation_ms / batch_denom)
+               << " allocation_ms_mean_tensor=" << (stats.allocation_ms / tensor_denom)
+               << " kernel_ms_total=" << stats.kernel_ms
+               << " kernel_ms_mean_batch=" << (stats.kernel_ms / batch_denom)
+               << " kernel_ms_mean_tensor=" << (stats.kernel_ms / tensor_denom);
+        write_line(stream.str());
+    }
+
+    std::ostringstream totals_stream;
+    totals_stream << "[summary][totals]"
+                  << " tensors=" << total_tensors
+                  << " tensor_bytes=" << total_tensor_bytes
+                  << " buffer_bytes=" << total_buffer_bytes
+                  << " skipped=" << skipped_tensors
+                  << " slabs=" << slab_count
+                  << " batches=" << batch_count;
+    write_line(totals_stream.str());
+    write_line("[summary] rank-local shard summary end");
 }
 
 std::string RankLogger::format_shape(const TensorMetadata& meta) {

@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <array>
 
 namespace checkers {
 
@@ -29,16 +30,10 @@ public:
                            double pass1_ms,
                            double allocation_ms,
                            double kernel_ms);
-    void log_summary(size_t discovered_tensors,
+    void log_summary(const std::array<TensorCategoryStats, tracked_tensor_category_count>& category_stats,
                      size_t skipped_tensors,
-                     size_t tracked_tensors,
                      size_t slab_count,
-                     size_t tensor_bytes,
-                     size_t buffer_bytes,
-                     double discovery_ms,
-                     double pass1_ms,
-                     double allocation_ms,
-                     double kernel_ms);
+                     size_t batch_count);
 
     int global_rank() const { return global_rank_; }
     int local_rank() const { return local_rank_; }

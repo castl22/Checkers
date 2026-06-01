@@ -9,6 +9,7 @@
 // skewness, kurtosis, etc.) -- but does NOT compute any of those.
  
 #include <umpire/Umpire.hpp>
+#include <array>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -54,6 +55,63 @@ enum class Contiguity : uint8_t {
     NonContiguous  = 1,  // Strided / sliced view; fragments list is populated
     Scalar         = 2   // 0-dim tensor
 };
+
+enum class TensorCategory : uint8_t {
+    ModelState = 0,
+    MasterWeights = 1,
+    OptimizerExpAvg = 2,
+    OptimizerExpAvgSq = 3,
+    Unknown = 255
+};
+
+inline constexpr size_t tracked_tensor_category_count = 4;
+
+inline size_t tensor_category_index(TensorCategory category) {
+    switch (category) {
+        case TensorCategory::ModelState:
+            return 0;
+        case TensorCategory::MasterWeights:
+            return 1;
+        case TensorCategory::OptimizerExpAvg:
+            return 2;
+        case TensorCategory::OptimizerExpAvgSq:
+            return 3;
+        default:
+            return tracked_tensor_category_count;
+    }
+}
+
+inline const char* tensor_category_name(TensorCategory category) {
+    switch (category) {
+        case TensorCategory::ModelState:
+            return "model_state";
+        case TensorCategory::MasterWeights:
+            return "master_weights";
+        case TensorCategory::OptimizerExpAvg:
+            return "exp_avg";
+        case TensorCategory::OptimizerExpAvgSq:
+            return "exp_avg_sq";
+        default:
+            return "unknown";
+    }
+}
+
+struct TensorCategoryStats {
+    size_t tensor_count = 0;
+    size_t tensor_bytes = 0;
+    size_t batch_count = 0;
+    double discovery_ms = 0.0;
+    double contiguous_ms = 0.0;
+    double planning_ms = 0.0;
+    size_t planned_buffer_bytes = 0;
+    double allocation_ms = 0.0;
+    double kernel_ms = 0.0;
+    std::string sample_name;
+    DataType sample_dtype = DataType::Unknown;
+    std::vector<size_t> sample_shape;
+    size_t sample_bytes = 0;
+    bool has_sample = false;
+};
  
 // ------------------------------------------------------------------ //
 //  One fragment of a non-contiguous tensor
@@ -72,6 +130,7 @@ struct TensorFragment {
 struct TensorMetadata {
     std::string            name;
     std::string            layer_id;
+    TensorCategory         category = TensorCategory::Unknown;
     std::vector<size_t>    shape;         // e.g. {768, 3072}
     std::vector<size_t>    logical_shape; // Full logical shape before sharding
     std::vector<ptrdiff_t> strides;       // In ELEMENTS (not bytes)

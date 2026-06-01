@@ -119,7 +119,12 @@ def main():
         collate_fn=collate_fn
     )
 
-    checkers_py.initialize_context(model_engine)
+    checkers_py.initialize_context(
+        model_engine,
+        optimizer,
+        histogram_bins=4096,
+        background_threads=4,
+    )
     model_engine.train()
     
     # We only care about the very first batch
