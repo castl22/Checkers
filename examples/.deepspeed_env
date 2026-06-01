@@ -1,0 +1,9 @@
+DS_ACCELERATOR=cuda
+DS_SKIP_CUDA_CHECK=1
+CUDA_HOME=/opt/rocm-6.4.0
+ROCM_PATH=/opt/rocm-6.4.0
+HIP_PLATFORM=amd
+HSA_OVERRIDE_GFX_VERSION=9.4.2
+HF_HOME=/p/vast1/kogiou1/hf_cache
+HF_DATASETS_CACHE = /p/vast1/kogiou1/hf_datasets/
+PYTHONPATH=/usr/WS1/kogiou1/LLM_work/Checkers/build

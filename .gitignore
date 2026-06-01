@@ -1,4 +1,5 @@
 build/
+examples/logs/
 *.csv
 exports/
 __pycache__/
