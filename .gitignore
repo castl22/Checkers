@@ -1,5 +1,6 @@
 build/
 examples/logs/
+examples/FSDP\ \(ZeRO-3\)/logs/
 *.csv
 exports/
 __pycache__/
