@@ -119,15 +119,15 @@ def main():
         collate_fn=collate_fn
     )
 
-    checkers_py.initialize_context(
-        model_engine,
-        optimizer,
-        histogram_bins=4096,
-        background_threads=4,
-    )
+
     model_engine.train()
-    
-    # We only care about the very first batch
+
+    # Run until at least one real optimizer step has completed.
+    # With gradient_accumulation_steps > 1, model_engine.step() is a no-op for
+    # gradient accumulation micro-steps; the inner FusedAdam only runs (and
+    # populates its state dict) on the boundary step.  We therefore loop until
+    # model_engine.global_steps >= 1 before calling initialize_context.
+    context_initialized = False
     for epoch in range(1):
         for step, batch in enumerate(training_dataloader):
             batch = {k: v.to(model_engine.device) for k, v in batch.items()}
@@ -138,17 +138,34 @@ def main():
             model_engine.backward(loss)
             model_engine.step()
 
+            # global_steps is incremented only after a real optimizer update.
+            if model_engine.global_steps < 1:
+                continue
+
+            if not context_initialized:
+                context_initialized = True
+
+                for name, param in model_engine.module.named_parameters():
+                    if hasattr(param, "ds_tensor") and param.ds_tensor is not None:
+                        print(f"DEBUG: Param {name} device: {param.ds_tensor.device}")
+                        break
+
+                checkers_py.initialize_context(
+                    model_engine,
+                    optimizer,
+                    histogram_bins=4096,
+                    background_threads=4,
+                )
+
             # --- SAVING LOGIC ---
             if model_engine.local_rank == 0:
-                print(f"Step 1 complete. Loss: {loss.item():.4f}")
-                print(f"--- Saving checkpoint after 1 step... ---")
-            
-            # Save the checkpoint now
-            checkpoint_state = {"epoch": epoch, "global_step": 1}
+                print(f"Step {model_engine.global_steps} complete. Loss: {loss.item():.4f}")
+                print(f"--- Saving checkpoint after step {model_engine.global_steps}... ---")
+
+            checkpoint_state = {"epoch": epoch, "global_step": int(model_engine.global_steps)}
             model_engine.save_checkpoint(output_dir, tag="step_1_checkpoint", client_state=checkpoint_state)
-            
-            # BREAK after the step and save
-            break 
+
+            break
 
     print("--- Training finished after 1 step. Checkpoint saved. ---")
 

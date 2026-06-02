@@ -62,6 +62,12 @@ bool try_tensor_like(py::handle handle,
 
 int extract_group_rank(py::object param, int fallback_rank);
 
+bool try_zero_partitioned_tensor(py::object param,
+                                 py::handle handle,
+                                 int fallback_rank,
+                                 py::object py_list_func,
+                                 TensorExtraction& extraction);
+
 py::object resolve_optimizer(py::object model_engine, py::object optimizer) {
     if (!optimizer.is_none()) {
         return optimizer;
@@ -241,6 +247,28 @@ bool submit_partition_slice(py::object flat_tensor,
     return submit_extraction(mgr, name, category, extraction, histogram_bins, discovery_ms);
 }
 
+// bool submit_local_tensor(py::handle tensor_handle,
+//                          py::object param,
+//                          const std::string& name,
+//                          const std::string& source,
+//                          TensorCategory category,
+//                          py::object py_list_func,
+//                          size_t histogram_bins,
+//                          MemoryManager& mgr,
+//                          std::vector<py::object>& lifetime_guard) {
+//     const auto discovery_start = std::chrono::steady_clock::now();
+//     TensorExtraction extraction;
+//     if (!try_tensor_like(tensor_handle, source, py_list_func, extraction)) {
+//         return false;
+//     }
+
+//     apply_logical_metadata(param, extraction.meta, py_list_func);
+//     lifetime_guard.push_back(py::reinterpret_borrow<py::object>(tensor_handle));
+//     const double discovery_ms = std::chrono::duration<double, std::milli>(
+//         std::chrono::steady_clock::now() - discovery_start).count();
+//     return submit_extraction(mgr, name, category, extraction, histogram_bins, discovery_ms);
+// }
+
 bool submit_local_tensor(py::handle tensor_handle,
                          py::object param,
                          const std::string& name,
@@ -250,17 +278,143 @@ bool submit_local_tensor(py::handle tensor_handle,
                          size_t histogram_bins,
                          MemoryManager& mgr,
                          std::vector<py::object>& lifetime_guard) {
-    const auto discovery_start = std::chrono::steady_clock::now();
-    TensorExtraction extraction;
-    if (!try_tensor_like(tensor_handle, source, py_list_func, extraction)) {
+    py::object tensor_obj = py::reinterpret_borrow<py::object>(tensor_handle);
+    size_t resident_numel = 0;
+    if (py::hasattr(tensor_obj, "numel")) {
+        resident_numel = tensor_obj.attr("numel")().cast<size_t>();
+    }
+    const size_t expected_numel = resident_partition_numel(param, /*fallback_rank=*/0);
+    if (expected_numel != 0) {
+        resident_numel = resident_numel == 0 ? expected_numel : std::min(resident_numel, expected_numel);
+    }
+    if (resident_numel == 0) {
         return false;
     }
 
+    py::object shard = tensor_obj;
+    if (py::hasattr(tensor_obj, "numel")
+        && tensor_obj.attr("numel")().cast<size_t>() > resident_numel
+        && py::hasattr(tensor_obj, "narrow")) {
+        shard = tensor_obj.attr("narrow")(0, 0, resident_numel);
+    }
+
+    const auto discovery_start = std::chrono::steady_clock::now();
+    TensorExtraction extraction;
+    if (!try_tensor_like(shard, source, py_list_func, extraction)) {
+        return false;
+    }
+
+    extraction.meta.num_elements = resident_numel;
+    extraction.meta.byte_size = resident_numel * extraction.meta.element_size;
+    extraction.meta.shape = {resident_numel};
+    extraction.meta.strides = {1};
     apply_logical_metadata(param, extraction.meta, py_list_func);
-    lifetime_guard.push_back(py::reinterpret_borrow<py::object>(tensor_handle));
+
+    lifetime_guard.push_back(shard);
+
     const double discovery_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - discovery_start).count();
     return submit_extraction(mgr, name, category, extraction, histogram_bins, discovery_ms);
+}
+
+py::object get_local_zero3_optimizer_state(py::object z3_optimizer,
+                                           py::object param,
+                                           const char* state_key,
+                                           py::object py_list_func,
+                                           std::string* failure_reason = nullptr) {
+    if (z3_optimizer.is_none()) {
+        if (failure_reason) {
+            *failure_reason = "z3 optimizer is none";
+        }
+        return py::none();
+    }
+
+    if (py::hasattr(z3_optimizer, "get_local_fp32_param")) {
+        try {
+            return z3_optimizer.attr("get_local_fp32_param")(param, py::str(state_key));
+        } catch (const py::error_already_set& e) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = e.what();
+            }
+        } catch (...) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = "get_local_fp32_param threw a non-python exception";
+            }
+        }
+    }
+
+    if (!py::hasattr(z3_optimizer, "grad_position")
+        || !py::hasattr(z3_optimizer, "get_param_id")
+        || !py::hasattr(z3_optimizer, "fp32_partitioned_groups_flat")
+        || !py::hasattr(z3_optimizer, "optimizer")) {
+        if (failure_reason && failure_reason->empty()) {
+            *failure_reason = "z3 optimizer missing grad_position/get_param_id/fp32_partitioned_groups_flat/optimizer";
+        }
+        return py::none();
+    }
+
+    try {
+        py::object param_id = z3_optimizer.attr("get_param_id")(param);
+        py::object grad_position = z3_optimizer.attr("grad_position");
+        py::tuple location = grad_position[param_id].cast<py::tuple>();
+        const size_t group_index = location[0].cast<size_t>();
+        const size_t dest_offset = location[1].cast<size_t>();
+        const size_t num_elements = location[2].cast<size_t>();
+
+        py::list fp32_groups = py_list_func(z3_optimizer.attr("fp32_partitioned_groups_flat"));
+        if (group_index >= fp32_groups.size()) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = "group index out of range for fp32_partitioned_groups_flat";
+            }
+            return py::none();
+        }
+
+        py::object fp32_param = py::reinterpret_borrow<py::object>(fp32_groups[group_index]);
+        py::object base_optimizer = z3_optimizer.attr("optimizer");
+        if (base_optimizer.is_none() || !py::hasattr(base_optimizer, "state")) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = "base optimizer missing state";
+            }
+            return py::none();
+        }
+
+        py::object state_entry_obj = base_optimizer.attr("state").attr("get")(fp32_param, py::none());
+        if (state_entry_obj.is_none() || !py::isinstance<py::dict>(state_entry_obj)) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = "base optimizer state has no entry for fp32 flat group";
+            }
+            return py::none();
+        }
+
+        py::dict state_entry = state_entry_obj.cast<py::dict>();
+        py::object key = py::str(state_key);
+        if (!state_entry.contains(key)) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = std::string("state entry missing key ") + state_key;
+            }
+            return py::none();
+        }
+
+        py::object state_tensor = state_entry[key];
+        if (state_tensor.is_none()) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = std::string("state tensor for key ") + state_key + " is none";
+            }
+            return py::none();
+        }
+
+        return state_tensor.attr("narrow")(0, dest_offset, num_elements);
+    } catch (const py::error_already_set& e) {
+        if (failure_reason && failure_reason->empty()) {
+            *failure_reason = e.what();
+        }
+        return py::none();
+    } catch (...) {
+        if (failure_reason && failure_reason->empty()) {
+            *failure_reason = "fallback optimizer-state lookup threw a non-python exception";
+        }
+        return py::none();
+    }
 }
 
 size_t discover_zero3_flat_states(py::object optimizer,
@@ -269,104 +423,159 @@ size_t discover_zero3_flat_states(py::object optimizer,
                                   py::object py_list_func,
                                   size_t histogram_bins,
                                   MemoryManager& mgr,
+                                  const std::shared_ptr<RankLogger>& logger,
                                   std::vector<py::object>& lifetime_guard,
                                   size_t& skipped_tensors) {
-    if (!has_zero3_flat_groups(optimizer)) {
-        return 0;
+    // ------------------------------------------------------------------
+    // One-time setup: collect the fp32 flat group list and the optimizer
+    // state dict (keyed by fp32 flat tensors -> {"exp_avg": ..., ...}).
+    // The state dict is only non-empty after at least one real optimizer
+    // step has been executed (i.e., after gradient_accumulation_steps
+    // backward calls have been made).
+    // ------------------------------------------------------------------
+    py::list fp32_groups;
+    if (py::hasattr(optimizer, "fp32_partitioned_groups_flat")) {
+        fp32_groups = py_list_func(optimizer.attr("fp32_partitioned_groups_flat"));
+    }
+
+    py::dict optimizer_state_dict;
+    bool has_opt_state = false;
+    if (py::hasattr(optimizer, "optimizer")) {
+        py::object base_opt = optimizer.attr("optimizer");
+        if (!base_opt.is_none() && py::hasattr(base_opt, "state")) {
+            py::object raw_state = base_opt.attr("state");
+            if (!raw_state.is_none() && py::isinstance<py::dict>(raw_state)) {
+                optimizer_state_dict = raw_state.cast<py::dict>();
+                has_opt_state = (optimizer_state_dict.size() > 0);
+            }
+        }
+    }
+
+    const bool has_grad_pos = py::hasattr(optimizer, "grad_position")
+                              && py::hasattr(optimizer, "get_param_id");
+
+    if (logger) {
+        logger->log_message("[checkers][zero3] fp32_groups="
+            + std::to_string(fp32_groups.size())
+            + " optimizer_state_entries=" + std::to_string(optimizer_state_dict.size())
+            + " has_grad_position=" + (has_grad_pos ? "true" : "false"));
     }
 
     size_t discovered = 0;
+
     for (auto item : named_params) {
         auto tuple_item = item.cast<py::tuple>();
-        std::string param_name = tuple_item[0].cast<std::string>();
+        const std::string param_name = tuple_item[0].cast<std::string>();
         py::object param = tuple_item[1];
         size_t discovered_for_param = 0;
 
-        if (py::hasattr(param, "ds_tensor")
-            && !param.attr("ds_tensor").is_none()
-            && submit_local_tensor(param.attr("ds_tensor"),
-                                   param,
-                                   param_name,
-                                   "zero3.param.ds_tensor",
-                                   TensorCategory::ModelState,
-                                   py_list_func,
-                                   histogram_bins,
-                                   mgr,
-                                   lifetime_guard)) {
-            ++discovered;
-            ++discovered_for_param;
-        }
-
-        py::object z3_optimizer = py::none();
-        if (py::hasattr(param, "_z3_optimizer") && !param.attr("_z3_optimizer").is_none()) {
-            z3_optimizer = param.attr("_z3_optimizer");
-        } else if (!optimizer.is_none() && py::hasattr(optimizer, "get_local_fp32_param")) {
-            z3_optimizer = optimizer;
-        }
-
-        if (!z3_optimizer.is_none() && py::hasattr(param, "requires_grad") && param.attr("requires_grad").cast<bool>()) {
-            try {
-                py::object master_local = z3_optimizer.attr("get_local_fp32_param")(param, py::none());
-                if (!master_local.is_none()
-                    && submit_local_tensor(master_local,
-                                           param,
-                                           "master_weights::" + param_name,
-                                           "zero3.get_local_fp32_param",
-                                           TensorCategory::MasterWeights,
-                                           py_list_func,
-                                           histogram_bins,
-                                           mgr,
-                                           lifetime_guard)) {
+        // ---- MODEL STATE: param.ds_tensor is this rank's local bf16 shard ----
+        if (py::hasattr(param, "ds_tensor") && !param.attr("ds_tensor").is_none()) {
+            py::object ds_tensor = param.attr("ds_tensor");
+            const auto disc_start = std::chrono::steady_clock::now();
+            TensorExtraction extraction;
+            if (try_zero_partitioned_tensor(param, ds_tensor, global_rank,
+                                            py_list_func, extraction)) {
+                apply_logical_metadata(param, extraction.meta, py_list_func);
+                lifetime_guard.push_back(ds_tensor);
+                const double disc_ms = std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - disc_start).count();
+                if (submit_extraction(mgr, param_name, TensorCategory::ModelState,
+                                      extraction, histogram_bins, disc_ms)) {
                     ++discovered;
                     ++discovered_for_param;
                 }
-            } catch (...) {
-            }
-
-            try {
-                py::object exp_avg_local = z3_optimizer.attr("get_local_fp32_param")(param, py::str("exp_avg"));
-                if (!exp_avg_local.is_none()
-                    && submit_local_tensor(exp_avg_local,
-                                           param,
-                                           "optimizer.exp_avg::" + param_name,
-                                           "zero3.get_local_fp32_param(exp_avg)",
-                                           TensorCategory::OptimizerExpAvg,
-                                           py_list_func,
-                                           histogram_bins,
-                                           mgr,
-                                           lifetime_guard)) {
-                    ++discovered;
-                    ++discovered_for_param;
-                }
-            } catch (...) {
-            }
-
-            try {
-                py::object exp_avg_sq_local = z3_optimizer.attr("get_local_fp32_param")(param, py::str("exp_avg_sq"));
-                if (!exp_avg_sq_local.is_none()
-                    && submit_local_tensor(exp_avg_sq_local,
-                                           param,
-                                           "optimizer.exp_avg_sq::" + param_name,
-                                           "zero3.get_local_fp32_param(exp_avg_sq)",
-                                           TensorCategory::OptimizerExpAvgSq,
-                                           py_list_func,
-                                           histogram_bins,
-                                           mgr,
-                                           lifetime_guard)) {
-                    ++discovered;
-                    ++discovered_for_param;
-                }
-            } catch (...) {
             }
         }
 
-        if (discovered_for_param == 0) {
-            ++skipped_tensors;
+        // ---- MASTER WEIGHTS + OPTIMIZER STATES via grad_position ----
+        // grad_position maps param_id -> [group_idx, dest_offset, num_elements]
+        // and tells us exactly where each parameter lives inside the flat fp32 buffer.
+        if (!has_grad_pos
+            || !py::hasattr(param, "requires_grad")
+            || !param.attr("requires_grad").cast<bool>()) {
+            if (discovered_for_param == 0) ++skipped_tensors;
+            continue;
         }
+
+        try {
+            py::object param_id = optimizer.attr("get_param_id")(param);
+            py::object grad_pos_obj = optimizer.attr("grad_position");
+            py::object location_obj = grad_pos_obj.attr("get")(param_id, py::none());
+            if (location_obj.is_none()) {
+                if (discovered_for_param == 0) ++skipped_tensors;
+                continue;
+            }
+
+            py::list loc = py_list_func(location_obj);
+            const size_t group_idx    = py::reinterpret_borrow<py::object>(loc[0]).cast<size_t>();
+            const size_t dest_offset  = py::reinterpret_borrow<py::object>(loc[1]).cast<size_t>();
+            const size_t num_elements = py::reinterpret_borrow<py::object>(loc[2]).cast<size_t>();
+
+            if (group_idx >= fp32_groups.size() || num_elements == 0) {
+                if (discovered_for_param == 0) ++skipped_tensors;
+                continue;
+            }
+
+            py::object fp32_flat = py::reinterpret_borrow<py::object>(fp32_groups[group_idx]);
+
+            // Master weights (fp32 slice of the flat buffer for this param)
+            if (submit_partition_slice(fp32_flat, param,
+                                       "master_weights::" + param_name,
+                                       "zero3.fp32_partitioned_groups_flat",
+                                       TensorCategory::MasterWeights,
+                                       dest_offset, num_elements,
+                                       py_list_func, histogram_bins, mgr,
+                                       lifetime_guard)) {
+                ++discovered;
+                ++discovered_for_param;
+            }
+
+            // Optimizer states – only available after the first real optimizer step
+            if (has_opt_state && optimizer_state_dict.contains(fp32_flat)) {
+                py::dict state_entry = optimizer_state_dict[fp32_flat].cast<py::dict>();
+
+                const py::str exp_avg_key("exp_avg");
+                const py::str exp_avg_sq_key("exp_avg_sq");
+
+                if (state_entry.contains(exp_avg_key)) {
+                    if (submit_partition_slice(state_entry[exp_avg_key], param,
+                                               "optimizer.exp_avg::" + param_name,
+                                               "zero3.optimizer.exp_avg",
+                                               TensorCategory::OptimizerExpAvg,
+                                               dest_offset, num_elements,
+                                               py_list_func, histogram_bins, mgr,
+                                               lifetime_guard)) {
+                        ++discovered;
+                        ++discovered_for_param;
+                    }
+                }
+
+                if (state_entry.contains(exp_avg_sq_key)) {
+                    if (submit_partition_slice(state_entry[exp_avg_sq_key], param,
+                                               "optimizer.exp_avg_sq::" + param_name,
+                                               "zero3.optimizer.exp_avg_sq",
+                                               TensorCategory::OptimizerExpAvgSq,
+                                               dest_offset, num_elements,
+                                               py_list_func, histogram_bins, mgr,
+                                               lifetime_guard)) {
+                        ++discovered;
+                        ++discovered_for_param;
+                    }
+                }
+            }
+        } catch (...) {
+            // param not registered in grad_position (e.g. non-trainable / persistent)
+        }
+
+        if (discovered_for_param == 0) ++skipped_tensors;
     }
 
     return discovered;
 }
+
+
+
 
 int extract_group_rank(py::object param, int fallback_rank) {
     if (!py::hasattr(param, "ds_process_group")) {
@@ -617,6 +826,7 @@ void initialize_context(py::object model_engine,
                                        py_list_func,
                                        histogram_bins,
                                        mgr,
+                                       logger,
                                        lifetime_guard,
                                        skipped_tensors);
         } else {
