@@ -1,5 +1,6 @@
 #include "checkers/api.hpp"
 #include "checkers/MemoryManager.hpp"
+#include "checkers/TensorAnalyzer.hpp"
 #include "checkers/logging.hpp"
 #include <pybind11/pybind11.h>     // Include pybind11 BEFORE referencing py::...
 #include <pybind11/eval.h>         // Often needed for py::str
@@ -20,13 +21,6 @@ namespace checkers {
 static DataType parse_dtype(const std::string& s);
 
 namespace {
-
-struct TensorExtraction {
-    void* ptr = nullptr;
-    size_t byte_size = 0;
-    TensorMetadata meta;
-    std::string source;
-};
 
 int extract_rank(py::object model_engine, const char* attr_name, const char* env_name) {
     if (py::hasattr(model_engine, attr_name)) {
@@ -883,6 +877,9 @@ void initialize_context(py::object model_engine,
                         size_t histogram_bins,
                         size_t background_threads) {
     try {
+        
+        const auto total_start = std::chrono::steady_clock::now();
+
         if (histogram_bins == 0) {
             throw std::runtime_error("histogram_bins must be greater than zero");
         }
@@ -892,17 +889,38 @@ void initialize_context(py::object model_engine,
 
         const int global_rank = extract_rank(model_engine, "global_rank", "RANK");
         const int local_rank = extract_rank(model_engine, "local_rank", "LOCAL_RANK");
+
         auto logger = RankLogger::create(global_rank, local_rank);
+
+        // =====================================================
+        // PHASE 1: SETUP
+        // =====================================================
+        const auto setup_start = std::chrono::steady_clock::now();
+
+#if defined(RAJA_ENABLE_HIP)
+        (void)hipFree(nullptr);
+#endif
+
+        auto& rm = umpire::ResourceManager::getInstance();
+        (void)rm;
+
         auto& mgr = MemoryManager::instance();
         mgr.reset();
         mgr.set_default_histogram_bins(histogram_bins);
         mgr.begin_pipeline(logger, background_threads, background_threads);
+        mgr.build_global_descriptor_array();
+
+        const auto setup_end = std::chrono::steady_clock::now();
 
         logger->log_message("[checkers] initialize_context begin");
         logger->log_message("[checkers] histogram_bins=" + std::to_string(histogram_bins)
                             + " background_threads=" + std::to_string(background_threads));
 
+        // =====================================================
+        // PHASE 2: DISCOVERY
+        // =====================================================
         const auto discovery_start = std::chrono::steady_clock::now();
+
         py::object py_list_func = py::module_::import("builtins").attr("list");
         py::list named_params = py_list_func(model_engine.attr("module").attr("named_parameters")());
         py::object resolved_optimizer = resolve_optimizer(model_engine, optimizer);
@@ -947,12 +965,34 @@ void initialize_context(py::object model_engine,
             }
         }
 
-        const double discovery_ms = std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - discovery_start).count();
-        (void)discovery_ms;
+        const auto discovery_end = std::chrono::steady_clock::now();
+
         mgr.set_skipped_count(skipped_tensors);
 
+        // =====================================================
+        // PHASE 3: FLUSH / WAIT FOR WORKERS
+        // =====================================================
+        const auto flush_start =
+            std::chrono::steady_clock::now();
+
+
         mgr.flush_pipeline();
+
+        const auto flush_end = std::chrono::steady_clock::now();
+
+        // =====================================================
+        // TIMING REPORT
+        // =====================================================
+        const double setup_ms = std::chrono::duration<double, std::milli>(setup_end - setup_start).count();
+        const double discovery_ms = std::chrono::duration<double, std::milli>(discovery_end - discovery_start).count();
+        const double flush_ms = std::chrono::duration<double, std::milli>(flush_end - flush_start).count();
+        const double total_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - total_start).count();
+
+        logger->log_message("[TIMING] setup_ms=" + std::to_string(setup_ms));
+        logger->log_message("[TIMING] discovery_ms=" + std::to_string(discovery_ms));
+        logger->log_message("[TIMING] flush_ms=" + std::to_string(flush_ms));
+        logger->log_message("[TIMING] total_ms=" + std::to_string(total_ms));
+
         logger->log_summary(
             mgr.get_category_stats(),
             mgr.skipped_count(),
@@ -964,14 +1004,21 @@ void initialize_context(py::object model_engine,
     }
 }
 
-void analyze_model(py::object model_engine,
-                   py::object optimizer,
-                   size_t histogram_bins,
-                   size_t background_threads) {
-    initialize_context(std::move(model_engine),
-                       std::move(optimizer),
-                       histogram_bins,
-                       background_threads);
+void analyze_model() {
+    auto& mgr = MemoryManager::instance();
+
+    TensorAnalyzer analyzer;
+
+    DeviceTensorRecord* d_records = mgr.device_records();
+    size_t record_count = mgr.record_count();
+
+    if (!d_records || record_count == 0) {
+        return;
+    }
+
+    analyzer.compute_histograms_and_moments(d_records, record_count);
+    analyzer.finalize_statistics(d_records, record_count);
+    analyzer.compute_fingerprints(d_records, record_count);
 }
 
 void compress_and_save(const std::string& output_path) {

@@ -112,6 +112,18 @@ struct TensorCategoryStats {
     size_t sample_bytes = 0;
     bool has_sample = false;
 };
+
+struct TensorStatistics {
+    float mean;
+    float median;
+    float variance;
+    float skewness;
+    float kurtosis;
+};
+
+struct TensorFingerprint {
+    float values[5];
+};
  
 // ------------------------------------------------------------------ //
 //  One fragment of a non-contiguous tensor
@@ -156,8 +168,12 @@ struct TensorMetadata {
  
     // Device pointers written by MemoryManager AFTER allocation (Pass 2)
     uint32_t* d_histogram = nullptr;
-    float*    d_moments   = nullptr;  // [mean, variance, skewness, kurtosis]
-    float*    d_minmax    = nullptr;  // [min, max]
+    float* d_raw_moments = nullptr;
+
+    TensorStatistics* d_statistics = nullptr;
+
+    TensorFingerprint* d_fingerprint = nullptr;
+    float* d_minmax = nullptr;
 };
  
 // ------------------------------------------------------------------ //

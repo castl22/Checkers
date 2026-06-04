@@ -54,16 +54,17 @@ inline void device_synchronize() {
 //  Mirrors TensorMetadata for tensors that are laid out on the GPU so
 //  RAJA kernels can read them without host round-trips.
 // ------------------------------------------------------------------ //
-struct alignas(16) DeviceTensorRecord {
-    float* d_data;          // Base data pointer (or nullptr if fragmented)
-    uint32_t* d_histogram;     // Pre-allocated histogram buffer
-    float* d_moments;       // Pre-allocated moments buffer [mean,var,skew,kurt]
-    float* d_minmax;        // Pre-allocated minmax buffer [min, max]
-    size_t    num_elements;
-    size_t    histogram_bins;
-    uint8_t   data_type;       // cast of DataType enum
-    uint8_t   contiguity;      // cast of Contiguity enum
-    uint8_t   _pad[6];
+struct DeviceTensorRecord {
+    float* d_data;
+    uint32_t* d_histogram;
+    float* d_raw_moments;
+    TensorStatistics* d_statistics;
+    TensorFingerprint* d_fingerprint;
+    float* d_minmax;
+    size_t num_elements;
+    uint32_t histogram_bins;
+    uint8_t data_type;
+    uint8_t contiguity;
 };
 
 // ------------------------------------------------------------------ //
@@ -118,6 +119,9 @@ public:
     double get_total_kernel_ms() const;
     size_t batch_count() const;
     std::array<TensorCategoryStats, tracked_tensor_category_count> get_category_stats() const;
+    DeviceTensorRecord* device_records() const { return d_records_; }
+    DeviceTensorRecord* d_records_;
+    size_t record_count() const;
 
     // Reporting
     void report_memory_usage() const;
@@ -127,6 +131,7 @@ public:
     // ---- Configuration ---- //
     void set_default_histogram_bins(size_t bins) { default_histogram_bins_ = bins; }
     void set_alignment_bytes(size_t align)        { alignment_bytes_ = align; }
+    void build_global_descriptor_array();
 
 private:
     MemoryManager();
@@ -167,10 +172,8 @@ private:
     // Batch Allocation Pipelines
     std::vector<BufferPlan>         buffer_plans_;            // Shared repository of calculated tensor layouts
     std::vector<void*>              active_slabs_;            // Managed list of all allocated local device slabs
-    std::vector<DeviceTensorRecord*> batch_device_records_;   // Tracks device array block addresses per batch segment
 
     // Device-side lookup cache tracking properties for legacy downstream hooks
-    DeviceTensorRecord* d_records_    = nullptr;
     size_t              record_count_ = 0;
 
     // Umpire Resources
@@ -193,8 +196,14 @@ private:
     double total_kernel_ms_        = 0.0;
 
     // Disallow duplication patterns
+    bool global_descriptor_initialized_ = false;
+    bool global_descriptor_built_ = false;
     MemoryManager(const MemoryManager&)            = delete;
     MemoryManager& operator=(const MemoryManager&) = delete;
+    void update_global_descriptor_entry(const std::string& name);
+
+    std::vector<DeviceTensorRecord> global_host_records_;
+    size_t                          global_capacity_ = 0;
 };
 
 } // namespace checkers

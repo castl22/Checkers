@@ -1,461 +1,0 @@
---- Generated Hostfile ---
-tuolumne1010 slots=4
-tuolumne1011 slots=4
---------------------------
-[2026-06-02 08:11:21,294] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-[2026-06-02 08:12:12,930] [INFO] [runner.py:576:main] deepspeed_env file = ./.deepspeed_env
-[2026-06-02 08:12:12,933] [INFO] [multinode_runner.py:81:get_cmd] Running on the following workers: tuolumne1010,tuolumne1011
-[2026-06-02 08:12:12,933] [INFO] [runner.py:587:main] cmd = pdsh -S -f 1024 -w tuolumne1010,tuolumne1011 export MV2_USE_RDMA_CM="0"; export MV2_HOMOGENEOUS_CLUSTER="1"; export PYTHONPATH="/usr/WS1/kogiou1/LLM_work/Checkers/build"; export DS_ACCELERATOR="cuda"; export DS_SKIP_CUDA_CHECK="1"; export CUDA_HOME="/opt/rocm-6.4.0"; export ROCM_PATH="/opt/rocm-6.4.0"; export HIP_PLATFORM="amd"; export HSA_OVERRIDE_GFX_VERSION="9.4.2"; export HF_HOME="/p/vast1/kogiou1/hf_cache"; export HF_DATASETS_CACHE="/p/vast1/kogiou1/hf_datasets/";  cd /usr/WS1/kogiou1/LLM_work/Checkers/examples; /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python -u -m deepspeed.launcher.launch --world_info=eyJ0dW9sdW1uZTEwMTAiOiBbMCwgMSwgMiwgM10sICJ0dW9sdW1uZTEwMTEiOiBbMCwgMSwgMiwgM119 --node_rank=%n --master_addr=tuolumne1010 --master_port=20798 train_llama3.py --deepspeed_config ds_config_zero3.json
-tuolumne1010: [2026-06-02 08:12:17,121] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1011: [2026-06-02 08:12:24,160] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1010: [2026-06-02 08:12:38,193] [INFO] [launch.py:146:main] WORLD INFO DICT: {'tuolumne1010': [0, 1, 2, 3], 'tuolumne1011': [0, 1, 2, 3]}
-tuolumne1010: [2026-06-02 08:12:38,193] [INFO] [launch.py:152:main] nnodes=2, num_local_procs=4, node_rank=0
-tuolumne1010: [2026-06-02 08:12:38,193] [INFO] [launch.py:163:main] global_rank_mapping=defaultdict(<class 'list'>, {'tuolumne1010': [0, 1, 2, 3], 'tuolumne1011': [4, 5, 6, 7]})
-tuolumne1010: [2026-06-02 08:12:38,193] [INFO] [launch.py:164:main] dist_world_size=8
-tuolumne1010: [2026-06-02 08:12:38,193] [INFO] [launch.py:168:main] Setting CUDA_VISIBLE_DEVICES=0,1,2,3
-tuolumne1010: [2026-06-02 08:12:38,195] [INFO] [launch.py:256:main] process 88003 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=0', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1010: [2026-06-02 08:12:38,196] [INFO] [launch.py:256:main] process 88004 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=1', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1010: [2026-06-02 08:12:38,197] [INFO] [launch.py:256:main] process 88005 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=2', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1010: [2026-06-02 08:12:38,198] [INFO] [launch.py:256:main] process 88006 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=3', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1010: [2026-06-02 08:12:40,732] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1010: [2026-06-02 08:12:40,732] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1010: [2026-06-02 08:12:40,732] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1010: [2026-06-02 08:12:40,772] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1011: [2026-06-02 08:12:58,710] [INFO] [launch.py:146:main] WORLD INFO DICT: {'tuolumne1010': [0, 1, 2, 3], 'tuolumne1011': [0, 1, 2, 3]}
-tuolumne1011: [2026-06-02 08:12:58,710] [INFO] [launch.py:152:main] nnodes=2, num_local_procs=4, node_rank=1
-tuolumne1011: [2026-06-02 08:12:58,710] [INFO] [launch.py:163:main] global_rank_mapping=defaultdict(<class 'list'>, {'tuolumne1010': [0, 1, 2, 3], 'tuolumne1011': [4, 5, 6, 7]})
-tuolumne1011: [2026-06-02 08:12:58,710] [INFO] [launch.py:164:main] dist_world_size=8
-tuolumne1011: [2026-06-02 08:12:58,710] [INFO] [launch.py:168:main] Setting CUDA_VISIBLE_DEVICES=0,1,2,3
-tuolumne1011: [2026-06-02 08:12:58,712] [INFO] [launch.py:256:main] process 119751 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=0', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1011: [2026-06-02 08:12:58,713] [INFO] [launch.py:256:main] process 119752 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=1', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1011: [2026-06-02 08:12:58,714] [INFO] [launch.py:256:main] process 119753 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=2', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1011: [2026-06-02 08:12:58,715] [INFO] [launch.py:256:main] process 119754 spawned with command: ['/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/bin/python', '-u', 'train_llama3.py', '--local_rank=3', '--deepspeed_config', 'ds_config_zero3.json']
-tuolumne1011: [2026-06-02 08:13:01,369] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1011: [2026-06-02 08:13:01,369] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1011: [2026-06-02 08:13:01,377] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1011: [2026-06-02 08:13:01,383] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
-tuolumne1010: Successfully imported checkers_py!Successfully imported checkers_py!Successfully imported checkers_py!Successfully imported checkers_py!
-tuolumne1010: 
-tuolumne1010: 
-tuolumne1010: 
-tuolumne1010: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1010: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1010: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1010: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1010: Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|          | 2/291 [00:00<00:16, 17.80it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:03, 88.62it/s]Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   3%|▎         | 9/291 [00:00<00:06, 41.65it/s]Loading weights:   5%|▍         | 14/291 [00:00<00:03, 84.48it/s]Loading weights:   4%|▍         | 11/291 [00:00<00:03, 91.61it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:03, 73.42it/s]Loading weights:   5%|▍         | 14/291 [00:00<00:07, 35.68it/s]Loading weights:  10%|█         | 30/291 [00:00<00:04, 56.72it/s]Loading weights:   7%|▋         | 21/291 [00:00<00:04, 58.74it/s]Loading weights:   8%|▊         | 23/291 [00:00<00:05, 48.43it/s]Loading weights:   9%|▊         | 25/291 [00:00<00:05, 52.75it/s]Loading weights:  12%|█▏        | 36/291 [00:00<00:04, 55.88it/s]Loading weights:  10%|▉         | 28/291 [00:00<00:05, 47.76it/s]Loading weights:  10%|▉         | 29/291 [00:00<00:05, 46.52it/s]Loading weights:  14%|█▍        | 42/291 [00:00<00:05, 47.71it/s]Loading weights:  13%|█▎        | 37/291 [00:00<00:04, 51.43it/s]Loading weights:  12%|█▏        | 34/291 [00:00<00:07, 36.70it/s]Loading weights:  11%|█         | 31/291 [00:00<00:08, 30.38it/s]Loading weights:  15%|█▍        | 43/291 [00:01<00:08, 28.73it/s]Loading weights:  13%|█▎        | 39/291 [00:01<00:09, 26.44it/s]Loading weights:  16%|█▌        | 47/291 [00:01<00:10, 23.42it/s]Loading weights:  12%|█▏        | 35/291 [00:01<00:12, 20.83it/s]Loading weights:  18%|█▊        | 52/291 [00:01<00:05, 43.54it/s]Loading weights:  19%|█▉        | 55/291 [00:01<00:05, 42.27it/s]Loading weights:  22%|██▏       | 63/291 [00:01<00:05, 43.42it/s]Loading weights:  21%|██▏       | 62/291 [00:01<00:04, 47.22it/s]Loading weights:  13%|█▎        | 38/291 [00:01<00:12, 20.76it/s]Loading weights:  20%|██        | 59/291 [00:01<00:04, 46.56it/s]Loading weights:  16%|█▌        | 46/291 [00:01<00:08, 28.46it/s]Loading weights:  24%|██▎       | 69/291 [00:01<00:04, 47.68it/s]Loading weights:  23%|██▎       | 66/291 [00:01<00:04, 49.16it/s]Loading weights:  24%|██▍       | 71/291 [00:01<00:06, 34.60it/s]Loading weights:  17%|█▋        | 50/291 [00:01<00:09, 26.66it/s]Loading weights:  29%|██▉       | 85/291 [00:01<00:03, 61.13it/s]Loading weights:  25%|██▍       | 72/291 [00:01<00:05, 41.68it/s]Loading weights:  27%|██▋       | 78/291 [00:01<00:05, 36.44it/s]Loading weights:  19%|█▉        | 56/291 [00:01<00:07, 32.70it/s]Loading weights:  32%|███▏      | 93/291 [00:01<00:03, 64.94it/s]Loading weights:  27%|██▋       | 78/291 [00:01<00:05, 38.82it/s]Loading weights:  29%|██▉       | 84/291 [00:02<00:05, 37.54it/s]Loading weights:  21%|██        | 61/291 [00:04<00:34,  6.58it/s]Loading weights:  35%|███▍      | 101/291 [00:04<00:16, 11.36it/s]Loading weights:  31%|███       | 89/291 [00:04<00:24,  8.34it/s]Loading weights:  29%|██▊       | 83/291 [00:04<00:26,  7.72it/s]Loading weights:  22%|██▏       | 64/291 [00:04<00:29,  7.72it/s]Loading weights:  38%|███▊      | 110/291 [00:04<00:12, 15.06it/s]Loading weights:  33%|███▎      | 97/291 [00:04<00:16, 11.90it/s]Loading weights:  34%|███▎      | 98/291 [00:04<00:12, 14.85it/s]Loading weights:  26%|██▌       | 75/291 [00:04<00:15, 14.21it/s]Loading weights:  42%|████▏     | 122/291 [00:04<00:07, 21.91it/s]Loading weights:  37%|███▋      | 109/291 [00:04<00:09, 18.95it/s]Loading weights:  27%|██▋       | 80/291 [00:04<00:14, 14.44it/s]Loading weights:  45%|████▍     | 130/291 [00:04<00:07, 21.54it/s]Loading weights:  36%|███▌      | 105/291 [00:04<00:12, 14.96it/s]Loading weights:  30%|██▉       | 87/291 [00:04<00:10, 19.52it/s]Loading weights:  40%|███▉      | 116/291 [00:04<00:09, 18.37it/s]Loading weights:  41%|████      | 119/291 [00:04<00:07, 23.57it/s]Loading weights:  47%|████▋     | 136/291 [00:04<00:06, 24.50it/s]Loading weights:  42%|████▏     | 121/291 [00:05<00:08, 20.75it/s]Loading weights:  46%|████▋     | 135/291 [00:04<00:04, 35.47it/s]Loading weights:  32%|███▏      | 92/291 [00:05<00:10, 19.79it/s]Loading weights:  55%|█████▍    | 160/291 [00:05<00:02, 46.43it/s]Loading weights:  51%|█████     | 147/291 [00:05<00:03, 43.79it/s]Loading weights:  33%|███▎      | 97/291 [00:05<00:08, 23.47it/s]Loading weights:  43%|████▎     | 126/291 [00:05<00:07, 20.83it/s]Loading weights:  58%|█████▊    | 169/291 [00:07<00:10, 11.49it/s]Loading weights:  45%|████▍     | 130/291 [00:07<00:28,  5.72it/s]Loading weights:  57%|█████▋    | 167/291 [00:07<00:08, 14.43it/s]Loading weights:  35%|███▌      | 102/291 [00:07<00:34,  5.48it/s]Loading weights:  62%|██████▏   | 179/291 [00:07<00:05, 18.73it/s]Loading weights:  48%|████▊     | 139/291 [00:09<00:25,  6.02it/s]Loading weights:  36%|███▌      | 105/291 [00:09<00:43,  4.29it/s]Loading weights:  61%|██████    | 178/291 [00:09<00:11,  9.49it/s]Loading weights:  51%|█████     | 147/291 [00:09<00:16,  8.74it/s]Loading weights:  40%|████      | 117/291 [00:09<00:20,  8.63it/s]Loading weights:  53%|█████▎    | 154/291 [00:09<00:11, 11.78it/s]Loading weights:  64%|██████▍   | 187/291 [00:09<00:08, 12.45it/s]Loading weights:  63%|██████▎   | 183/291 [00:09<00:10, 10.74it/s]Loading weights:  45%|████▍     | 130/291 [00:09<00:12, 13.01it/s]Loading weights:  66%|██████▋   | 193/291 [00:09<00:07, 13.38it/s]Loading weights:  55%|█████▍    | 159/291 [00:09<00:10, 12.51it/s]Loading weights:  65%|██████▍   | 188/291 [00:09<00:09, 11.20it/s]Loading weights:  57%|█████▋    | 166/291 [00:09<00:07, 16.78it/s]Loading weights:  69%|██████▉   | 201/291 [00:09<00:05, 16.60it/s]Loading weights:  49%|████▉     | 142/291 [00:09<00:07, 18.98it/s]Loading weights:  67%|██████▋   | 194/291 [00:09<00:06, 13.97it/s]Loading weights:  59%|█████▉    | 171/291 [00:10<00:06, 19.54it/s]Loading weights:  54%|█████▍    | 158/291 [00:10<00:04, 29.45it/s]Loading weights:  70%|██████▉   | 203/291 [00:10<00:04, 19.01it/s]Loading weights:  71%|███████   | 206/291 [00:09<00:04, 17.61it/s]Loading weights:  57%|█████▋    | 167/291 [00:10<00:03, 34.09it/s]Loading weights:  60%|██████    | 176/291 [00:10<00:05, 21.64it/s]Loading weights: 100%|██████████| 291/291 [00:10<00:00, 29.00it/s]
-tuolumne1010: Loading weights: 100%|██████████| 291/291 [00:10<00:00, 28.61it/s]
-tuolumne1010: Loading weights: 100%|██████████| 291/291 [00:10<00:00, 28.87it/s]
-tuolumne1010: Loading weights: 100%|██████████| 291/291 [00:10<00:00, 28.51it/s]
-tuolumne1011: Successfully imported checkers_py!Successfully imported checkers_py!Successfully imported checkers_py!Successfully imported checkers_py!
-tuolumne1011: 
-tuolumne1011: 
-tuolumne1011: 
-tuolumne1011: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1011: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1011: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1011: [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-tuolumne1011: Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:  14%|█▍        | 41/291 [00:00<00:02, 111.30it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 199.65it/s]Loading weights:  13%|█▎        | 39/291 [00:00<00:02, 90.95it/s]Loading weights:  17%|█▋        | 50/291 [00:00<00:02, 118.34it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:05, 43.69it/s]Loading weights:  18%|█▊        | 53/291 [00:00<00:04, 49.95it/s] Loading weights:  21%|██▏       | 62/291 [00:00<00:04, 55.00it/s] Loading weights:  36%|███▌      | 105/291 [00:00<00:02, 92.38it/s]Loading weights: 100%|██████████| 291/291 [00:01<00:00, 282.29it/s]
-tuolumne1011: Loading weights: 100%|██████████| 291/291 [00:00<00:00, 298.85it/s]
-tuolumne1011: Loading weights: 100%|██████████| 291/291 [00:01<00:00, 281.39it/s]
-tuolumne1011: Loading weights: 100%|██████████| 291/291 [00:01<00:00, 282.82it/s]
-tuolumne1010: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1010: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1010: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1010: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1010: [2026-06-02 08:16:45,524] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1010: [2026-06-02 08:16:45,524] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1010: [2026-06-02 08:16:45,524] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1010: [2026-06-02 08:16:45,524] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1010: [2026-06-02 08:16:45,686] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1010: [2026-06-02 08:16:45,686] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1010: [2026-06-02 08:16:45,896] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1010: [2026-06-02 08:16:45,896] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1010: [2026-06-02 08:16:45,896] [INFO] [comm.py:683:init_distributed] Initializing TorchBackend in DeepSpeed with backend nccl
-tuolumne1010: [2026-06-02 08:16:46,066] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: [2026-06-02 08:16:46,268] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: [2026-06-02 08:16:46,444] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1011: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1011: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1011: Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1011: [2026-06-02 08:16:50,726] [INFO] [logging.py:96:log_dist] [Rank -1] DeepSpeed info: version=0.15.2+unknown, git-hash=unknown, git-branch=unknown
-tuolumne1011: [2026-06-02 08:16:50,727] [INFO] [comm.py:652:init_distributed] cdb=None
-tuolumne1011: [2026-06-02 08:16:50,737] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: [2026-06-02 08:16:50,737] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: [2026-06-02 08:16:50,737] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: [2026-06-02 08:16:50,738] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: [2026-06-02 08:16:50,740] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: [2026-06-02 08:17:15,142] [INFO] [logging.py:96:log_dist] [Rank 0] DeepSpeed Flops Profiler Enabled: False
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1010: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1011: /bin/sh: rocminfo: command not found
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/fused_adam_frontend.cpp -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/fused_adam_frontend.cpp [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/compat.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/compat.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_apply.cuh -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_apply_hip.cuh [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/type_shim.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/type_shim_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_adam.cu -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_adam.hip [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/Timer.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/Timer_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/compat.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/compat.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/ds_kernel_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/ds_kernel_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/StopWatch.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/StopWatch.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cublas_wrappers.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cublas_wrappers_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/gemm_test.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/gemm_test_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/context.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/context_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/custom_cuda_layers.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/custom_hip_layers.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/gelu.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/gelu_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/simd.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/simd.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/StopWatch.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/StopWatch.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/dropout.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/dropout_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/ds_kernel_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/ds_kernel_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/feed_forward.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/feed_forward_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/general_kernels.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/general_kernels_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/normalize_layer.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/normalize_layer_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/softmax.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/softmax_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/strided_batch_gemm.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/strided_batch_gemm_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/ds_transformer_cuda.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/ds_transformer_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/feed_forward.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/feed_forward_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/gemm_test.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/gemm_test_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/general_kernels.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/general_kernels_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/memory_access_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/memory_access_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/normalize_layer.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/normalize_layer_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/quantization.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/quantization_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/conversion_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/conversion_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/reduction_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/reduction_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/quantization_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/quantization_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/quantizer.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/quantizer_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/reduction_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/reduction_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/softmax.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/softmax_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/strided_batch_gemm.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/strided_batch_gemm_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/type_shim.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/type_shim_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/activation_type.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/activation_type.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/context.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/context_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/conversion_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/conversion_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cpu_adagrad.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cpu_adagrad.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cpu_adam.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cpu_adam.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cpu_lion.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cpu_lion.h [skipped, no changes]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cublas_wrappers.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/cublas_wrappers_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/custom_cuda_layers.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/custom_hip_layers.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/dequantization_utils.h -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes/dequantization_utils_hip.h [skipped, already hipified]
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_apply.cuh -> /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_apply_hip.cuh [skipped, already hipified]
-tuolumne1010: [92mSuccessfully preprocessed all matching files.[0m
-tuolumne1010: Total number of unsupported CUDA function calls: 0
-tuolumne1010: 
-tuolumne1010: 
-tuolumne1010: Total number of replaced kernel launches: 2
-tuolumne1010: [1/3] /usr/tce/bin/g++ -MMD -MF fused_adam_frontend.o.d -DTORCH_EXTENSION_NAME=fused_adam -DTORCH_API_INCLUDE_EXTENSION_H -I/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes -I/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam -isystem /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/include -isystem /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/include/torch/csrc/api/include -isystem /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/include/THH -isystem /opt/rocm-6.4.0/include -isystem /usr/tce/packages/python/python-3.11.5/include/python3.11 -fPIC -std=c++17 -O3 -std=c++17 -g -Wno-reorder -DVERSION_GE_1_1 -DVERSION_GE_1_3 -DVERSION_GE_1_5 -D__HIP_PLATFORM_AMD__=1 -DROCM_WAVEFRONT_SIZE=32 -c /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/fused_adam_frontend.cpp -o fused_adam_frontend.o -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2 -fPIC
-tuolumne1010: [2/3] /opt/rocm-6.4.0/bin/hipcc  -DWITH_HIP -DTORCH_EXTENSION_NAME=fused_adam -DTORCH_API_INCLUDE_EXTENSION_H -I/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/includes -I/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam -isystem /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/include -isystem /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/include/torch/csrc/api/include -isystem /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/include/THH -isystem /opt/rocm-6.4.0/include -isystem /usr/tce/packages/python/python-3.11.5/include/python3.11 -fPIC -std=c++17 -O3 -std=c++17 -g -Wno-reorder -DVERSION_GE_1_1 -DVERSION_GE_1_3 -DVERSION_GE_1_5 -D__HIP_PLATFORM_AMD__=1 -DROCM_WAVEFRONT_SIZE=32 -D__HIP_PLATFORM_AMD__=1 -DUSE_ROCM=1 -DHIPBLAS_V2 -fPIC -DCUDA_HAS_FP16=1 -D__HIP_NO_HALF_OPERATORS__=1 -D__HIP_NO_HALF_CONVERSIONS__=1 -DHIP_ENABLE_WARP_SYNC_BUILTINS=1 --offload-arch=gfx900 --offload-arch=gfx906 --offload-arch=gfx908 --offload-arch=gfx90a --offload-arch=gfx942 --offload-arch=gfx1030 --offload-arch=gfx1100 --offload-arch=gfx1101 --offload-arch=gfx1102 --offload-arch=gfx1200 --offload-arch=gfx1201 -fno-gpu-rdc -O3 -DVERSION_GE_1_1 -DVERSION_GE_1_3 -DVERSION_GE_1_5 -c /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/deepspeed/ops/csrc/adam/multi_tensor_adam.hip -o multi_tensor_adam.cuda.o 
-tuolumne1010: [3/3] /usr/tce/bin/g++ multi_tensor_adam.cuda.o fused_adam_frontend.o -shared -L/usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/lib -lc10 -lc10_hip -ltorch_cpu -ltorch_hip -ltorch -ltorch_python -L/opt/rocm-6.4.0/lib -lamdhip64 -o fused_adam.so
-tuolumne1010: Time to load fused_adam op: 114.70024061203003 seconds
-tuolumne1010: [2026-06-02 08:19:09,884] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: Time to load fused_adam op: 114.72837853431702 seconds
-tuolumne1010: Time to load fused_adam op: 114.71909213066101 seconds
-tuolumne1010: Time to load fused_adam op: 114.73258781433105 seconds
-tuolumne1010: [2026-06-02 08:19:09,895] [INFO] [logging.py:96:log_dist] [Rank 0] Using DeepSpeed Optimizer param name adamw as basic optimizer
-tuolumne1010: [2026-06-02 08:19:09,896] [INFO] [logging.py:96:log_dist] [Rank 0] Removing param_group that has no 'params' in the basic Optimizer
-tuolumne1010: [2026-06-02 08:19:09,909] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: [2026-06-02 08:19:09,910] [INFO] [logging.py:96:log_dist] [Rank 0] DeepSpeed Basic Optimizer = FusedAdam
-tuolumne1010: [2026-06-02 08:19:09,910] [INFO] [utils.py:59:is_zero_supported_optimizer] Checking ZeRO support for optimizer=FusedAdam type=<class 'deepspeed.ops.adam.fused_adam.FusedAdam'>
-tuolumne1010: [2026-06-02 08:19:09,910] [INFO] [logging.py:96:log_dist] [Rank 0] Creating fp16 ZeRO stage 3 optimizer, MiCS is enabled False, Hierarchical params gather False
-tuolumne1010: [2026-06-02 08:19:09,910] [INFO] [logging.py:96:log_dist] [Rank 0] Creating torch.bfloat16 ZeRO stage 3 optimizer
-tuolumne1010: [2026-06-02 08:19:09,916] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: [2026-06-02 08:19:10,567] [INFO] [utils.py:781:see_memory_usage] Stage 3 initialize beginning
-tuolumne1010: [2026-06-02 08:19:10,568] [INFO] [utils.py:782:see_memory_usage] MA 14.96 GB         Max_MA 14.96 GB         CA 15.08 GB         Max_CA 15 GB 
-tuolumne1010: [2026-06-02 08:19:10,568] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 85.71 GB, percent = 17.1%
-tuolumne1010: [2026-06-02 08:19:10,570] [INFO] [stage3.py:165:__init__] Reduce bucket size 500000000
-tuolumne1010: [2026-06-02 08:19:10,570] [INFO] [stage3.py:166:__init__] Prefetch bucket size 500000000
-tuolumne1010: [2026-06-02 08:19:11,137] [INFO] [utils.py:781:see_memory_usage] DeepSpeedZeRoOffload initialize [begin]
-tuolumne1010: [2026-06-02 08:19:11,138] [INFO] [utils.py:782:see_memory_usage] MA 14.96 GB         Max_MA 14.96 GB         CA 15.08 GB         Max_CA 15 GB 
-tuolumne1010: [2026-06-02 08:19:11,138] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 85.71 GB, percent = 17.1%
-tuolumne1010: [2026-06-02 08:19:11,142] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: Time to load fused_adam op: 150.1824562549591 secondsTime to load fused_adam op: 150.18248891830444 secondsTime to load fused_adam op: 150.1824595928192 seconds
-tuolumne1011: 
-tuolumne1011: 
-tuolumne1011: Time to load fused_adam op: 150.18256068229675 seconds
-tuolumne1011: [2026-06-02 08:19:45,412] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: [2026-06-02 08:19:45,417] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: [2026-06-02 08:19:45,418] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1011: [2026-06-02 08:19:45,419] [INFO] [config.py:747:__init__] Config mesh_device None world_size = 8
-tuolumne1010: Parameter Offload: Total persistent parameters: 266240 in 65 params
-tuolumne1010: [2026-06-02 08:19:50,630] [INFO] [utils.py:781:see_memory_usage] DeepSpeedZeRoOffload initialize [end]
-tuolumne1010: [2026-06-02 08:19:50,631] [INFO] [utils.py:782:see_memory_usage] MA 1.87 GB         Max_MA 15.08 GB         CA 15.27 GB         Max_CA 15 GB 
-tuolumne1010: [2026-06-02 08:19:50,631] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 87.8 GB, percent = 17.5%
-tuolumne1010: [2026-06-02 08:19:51,213] [INFO] [utils.py:781:see_memory_usage] Before creating fp16 partitions
-tuolumne1010: [2026-06-02 08:19:51,214] [INFO] [utils.py:782:see_memory_usage] MA 1.87 GB         Max_MA 1.87 GB         CA 15.27 GB         Max_CA 15 GB 
-tuolumne1010: [2026-06-02 08:19:51,214] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 87.78 GB, percent = 17.5%
-tuolumne1010: /usr/workspace/kogiou1/venvs/deespeed_venv_tuo/lib/python3.11/site-packages/torch/distributed/distributed_c10d.py:4876: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
-tuolumne1010:   warnings.warn(  # warn only once
-tuolumne1010: [2026-06-02 08:19:56,556] [INFO] [utils.py:781:see_memory_usage] After creating fp16 partitions: 1
-tuolumne1010: [2026-06-02 08:19:56,559] [INFO] [utils.py:782:see_memory_usage] MA 1.87 GB         Max_MA 1.87 GB         CA 1.87 GB         Max_CA 15 GB 
-tuolumne1010: [2026-06-02 08:19:56,559] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 50.92 GB, percent = 10.1%
-tuolumne1010: [2026-06-02 08:19:57,159] [INFO] [utils.py:781:see_memory_usage] Before creating fp32 partitions
-tuolumne1010: [2026-06-02 08:19:57,160] [INFO] [utils.py:782:see_memory_usage] MA 1.87 GB         Max_MA 1.87 GB         CA 1.87 GB         Max_CA 2 GB 
-tuolumne1010: [2026-06-02 08:19:57,160] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 50.92 GB, percent = 10.1%
-tuolumne1010: [2026-06-02 08:19:58,216] [INFO] [utils.py:781:see_memory_usage] After creating fp32 partitions
-tuolumne1010: [2026-06-02 08:19:58,218] [INFO] [utils.py:782:see_memory_usage] MA 5.61 GB         Max_MA 7.48 GB         CA 7.48 GB         Max_CA 7 GB 
-tuolumne1010: [2026-06-02 08:19:58,218] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 56.56 GB, percent = 11.3%
-tuolumne1010: [2026-06-02 08:19:58,808] [INFO] [utils.py:781:see_memory_usage] Before initializing optimizer states
-tuolumne1010: [2026-06-02 08:19:58,809] [INFO] [utils.py:782:see_memory_usage] MA 5.61 GB         Max_MA 5.61 GB         CA 7.48 GB         Max_CA 7 GB 
-tuolumne1010: [2026-06-02 08:19:58,809] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 67.83 GB, percent = 13.5%
-tuolumne1010: [2026-06-02 08:19:59,772] [INFO] [utils.py:781:see_memory_usage] After initializing optimizer states
-tuolumne1010: [2026-06-02 08:19:59,773] [INFO] [utils.py:782:see_memory_usage] MA 5.61 GB         Max_MA 9.35 GB         CA 11.22 GB         Max_CA 11 GB 
-tuolumne1010: [2026-06-02 08:19:59,773] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 71.58 GB, percent = 14.3%
-tuolumne1010: [2026-06-02 08:19:59,774] [INFO] [stage3.py:520:_setup_for_real_optimizer] optimizer state initialized
-tuolumne1010: [2026-06-02 08:20:03,367] [INFO] [utils.py:781:see_memory_usage] After initializing ZeRO optimizer
-tuolumne1010: [2026-06-02 08:20:03,370] [INFO] [utils.py:782:see_memory_usage] MA 8.41 GB         Max_MA 10.37 GB         CA 12.2 GB         Max_CA 12 GB 
-tuolumne1010: [2026-06-02 08:20:03,370] [INFO] [utils.py:789:see_memory_usage] CPU Virtual Memory:  used = 75.93 GB, percent = 15.1%
-tuolumne1010: [2026-06-02 08:20:03,370] [INFO] [logging.py:96:log_dist] [Rank 0] DeepSpeed Final Optimizer = DeepSpeedZeroOptimizer_Stage3
-tuolumne1010: [2026-06-02 08:20:03,371] [INFO] [logging.py:96:log_dist] [Rank 0] DeepSpeed using configured LR scheduler = None
-tuolumne1010: [2026-06-02 08:20:03,371] [INFO] [logging.py:96:log_dist] [Rank 0] DeepSpeed LR Scheduler = None
-tuolumne1010: [2026-06-02 08:20:03,371] [INFO] [logging.py:96:log_dist] [Rank 0] step=0, skipped=0, lr=[2e-05], mom=[[0.9, 0.999]]
-tuolumne1010: [2026-06-02 08:20:03,372] [INFO] [config.py:1013:print] DeepSpeedEngine configuration:
-tuolumne1010: [2026-06-02 08:20:03,372] [INFO] [config.py:1017:print]   activation_checkpointing_config  {
-tuolumne1010:     "partition_activations": false, 
-tuolumne1010:     "contiguous_memory_optimization": false, 
-tuolumne1010:     "cpu_checkpointing": false, 
-tuolumne1010:     "number_checkpoints": null, 
-tuolumne1010:     "synchronize_checkpoint_boundary": false, 
-tuolumne1010:     "profile": false
-tuolumne1010: }
-tuolumne1010: [2026-06-02 08:20:03,372] [INFO] [config.py:1017:print]   aio_config ................... {'block_size': 1048576, 'queue_depth': 8, 'thread_count': 1, 'single_submit': False, 'overlap_events': True, 'use_gds': False}
-tuolumne1010: [2026-06-02 08:20:03,372] [INFO] [config.py:1017:print]   amp_enabled .................. False
-tuolumne1010: [2026-06-02 08:20:03,372] [INFO] [config.py:1017:print]   amp_params ................... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   autotuning_config ............ {
-tuolumne1010:     "enabled": false, 
-tuolumne1010:     "start_step": null, 
-tuolumne1010:     "end_step": null, 
-tuolumne1010:     "metric_path": null, 
-tuolumne1010:     "arg_mappings": null, 
-tuolumne1010:     "metric": "throughput", 
-tuolumne1010:     "model_info": null, 
-tuolumne1010:     "results_dir": "autotuning_results", 
-tuolumne1010:     "exps_dir": "autotuning_exps", 
-tuolumne1010:     "overwrite": true, 
-tuolumne1010:     "fast": true, 
-tuolumne1010:     "start_profile_step": 3, 
-tuolumne1010:     "end_profile_step": 5, 
-tuolumne1010:     "tuner_type": "gridsearch", 
-tuolumne1010:     "tuner_early_stopping": 5, 
-tuolumne1010:     "tuner_num_trials": 50, 
-tuolumne1010:     "model_info_path": null, 
-tuolumne1010:     "mp_size": 1, 
-tuolumne1010:     "max_train_batch_size": null, 
-tuolumne1010:     "min_train_batch_size": 1, 
-tuolumne1010:     "max_train_micro_batch_size_per_gpu": 1.024000e+03, 
-tuolumne1010:     "min_train_micro_batch_size_per_gpu": 1, 
-tuolumne1010:     "num_tuning_micro_batch_sizes": 3
-tuolumne1010: }
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   bfloat16_enabled ............. True
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   bfloat16_immediate_grad_update  False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   checkpoint_parallel_write_pipeline  False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   checkpoint_tag_validation_enabled  True
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   checkpoint_tag_validation_fail  False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   comms_config ................. <deepspeed.comm.config.DeepSpeedCommsConfig object at 0x15537c349990>
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   communication_data_type ...... None
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   compression_config ........... {'weight_quantization': {'shared_parameters': {'enabled': False, 'quantizer_kernel': False, 'schedule_offset': 0, 'quantize_groups': 1, 'quantize_verbose': False, 'quantization_type': 'symmetric', 'quantize_weight_in_forward': False, 'rounding': 'nearest', 'fp16_mixed_quantize': False, 'quantize_change_ratio': 0.001}, 'different_groups': {}}, 'activation_quantization': {'shared_parameters': {'enabled': False, 'quantization_type': 'symmetric', 'range_calibration': 'dynamic', 'schedule_offset': 1000}, 'different_groups': {}}, 'sparse_pruning': {'shared_parameters': {'enabled': False, 'method': 'l1', 'schedule_offset': 1000}, 'different_groups': {}}, 'row_pruning': {'shared_parameters': {'enabled': False, 'method': 'l1', 'schedule_offset': 1000}, 'different_groups': {}}, 'head_pruning': {'shared_parameters': {'enabled': False, 'method': 'topk', 'schedule_offset': 1000}, 'different_groups': {}}, 'channel_pruning': {'shared_parameters': {'enabled': False, 'method': 'l1', 'schedule_offset': 1000}, 'different_groups': {}}, 'layer_reduction': {'enabled': False}}
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   curriculum_enabled_legacy .... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   curriculum_params_legacy ..... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   data_efficiency_config ....... {'enabled': False, 'seed': 1234, 'data_sampling': {'enabled': False, 'num_epochs': 1000, 'num_workers': 0, 'curriculum_learning': {'enabled': False}}, 'data_routing': {'enabled': False, 'random_ltd': {'enabled': False, 'layer_token_lr_schedule': {'enabled': False}}}}
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   data_efficiency_enabled ...... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   dataloader_drop_last ......... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   disable_allgather ............ False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   dump_state ................... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   dynamic_loss_scale_args ...... None
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_enabled ........... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_gas_boundary_resolution  1
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_layer_name ........ bert.encoder.layer
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_layer_num ......... 0
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_max_iter .......... 100
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_stability ......... 1e-06
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_tol ............... 0.01
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   eigenvalue_verbose ........... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   elasticity_enabled ........... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   flops_profiler_config ........ {
-tuolumne1010:     "enabled": false, 
-tuolumne1010:     "recompute_fwd_factor": 0.0, 
-tuolumne1010:     "profile_step": 1, 
-tuolumne1010:     "module_depth": -1, 
-tuolumne1010:     "top_modules": 1, 
-tuolumne1010:     "detailed": true, 
-tuolumne1010:     "output_file": null
-tuolumne1010: }
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   fp16_auto_cast ............... None
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   fp16_enabled ................. False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   fp16_master_weights_and_gradients  False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   global_rank .................. 0
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   grad_accum_dtype ............. None
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   gradient_accumulation_steps .. 4
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   gradient_clipping ............ 0.0
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   gradient_predivide_factor .... 1.0
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   graph_harvesting ............. False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   hybrid_engine ................ enabled=False max_out_tokens=512 inference_tp_size=1 release_inference_cache=False pin_parameters=True tp_gather_partition_size=8
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   initial_dynamic_scale ........ 1
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   load_universal_checkpoint .... False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   loss_scale ................... 1.0
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   memory_breakdown ............. False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   mics_hierarchial_params_gather  False
-tuolumne1010: [2026-06-02 08:20:03,373] [INFO] [config.py:1017:print]   mics_shard_size .............. -1
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   monitor_config ............... tensorboard=TensorBoardConfig(enabled=False, output_path='', job_name='DeepSpeedJobName') comet=CometConfig(enabled=False, samples_log_interval=100, project=None, workspace=None, api_key=None, experiment_name=None, experiment_key=None, online=None, mode=None) wandb=WandbConfig(enabled=False, group=None, team=None, project='deepspeed') csv_monitor=CSVConfig(enabled=False, output_path='', job_name='DeepSpeedJobName')
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   nebula_config ................ {
-tuolumne1010:     "enabled": false, 
-tuolumne1010:     "persistent_storage_path": null, 
-tuolumne1010:     "persistent_time_interval": 100, 
-tuolumne1010:     "num_of_version_in_retention": 2, 
-tuolumne1010:     "enable_nebula_load": true, 
-tuolumne1010:     "load_path": null
-tuolumne1010: }
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   optimizer_legacy_fusion ...... False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   optimizer_name ............... adamw
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   optimizer_params ............. {'lr': 2e-05, 'betas': [0.9, 0.999], 'eps': 1e-08, 'weight_decay': 0.1}
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   pipeline ..................... {'stages': 'auto', 'partition': 'best', 'seed_layers': False, 'activation_checkpoint_interval': 0, 'pipe_partitioned': True, 'grad_partitioned': True}
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   pld_enabled .................. False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   pld_params ................... False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   prescale_gradients ........... False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   scheduler_name ............... None
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   scheduler_params ............. None
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   seq_parallel_communication_data_type  torch.float32
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   sparse_attention ............. None
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   sparse_gradients_enabled ..... False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   steps_per_print .............. 1
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   timers_config ................ enabled=True synchronized=True
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   train_batch_size ............. 256
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   train_micro_batch_size_per_gpu  8
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   use_data_before_expert_parallel_  False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   use_node_local_storage ....... False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   wall_clock_breakdown ......... False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   weight_quantization_config ... None
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   world_size ................... 8
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   zero_allow_untested_optimizer  False
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   zero_config .................. stage=3 contiguous_gradients=True reduce_scatter=True reduce_bucket_size=500000000 use_multi_rank_bucket_allreduce=True allgather_partitions=True allgather_bucket_size=500000000 overlap_comm=True load_from_fp32_weights=True elastic_checkpoint=False offload_param=None offload_optimizer=None sub_group_size=1000000000 cpu_offload_param=None cpu_offload_use_pin_memory=None cpu_offload=None prefetch_bucket_size=500000000 param_persistence_threshold=1000000 model_persistence_threshold=9223372036854775807 max_live_parameters=1000000000 max_reuse_distance=1000000000 gather_16bit_weights_on_model_save=True use_all_reduce_for_fetch_params=False stage3_gather_fp16_weights_on_model_save=False ignore_unused_parameters=True legacy_stage1=False round_robin_gradients=False zero_hpz_partition_size=1 zero_quantized_weights=False zero_quantized_nontrainable_weights=False zero_quantized_gradients=False mics_shard_size=-1 mics_hierarchical_params_gather=False memory_efficient_linear=True pipeline_loading_checkpoint=False override_module_apply=True
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   zero_enabled ................. True
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   zero_force_ds_cpu_optimizer .. True
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1017:print]   zero_optimization_stage ...... 3
-tuolumne1010: [2026-06-02 08:20:03,374] [INFO] [config.py:1003:print_user_config]   json = {
-tuolumne1010:     "train_batch_size": 256, 
-tuolumne1010:     "train_micro_batch_size_per_gpu": 8, 
-tuolumne1010:     "gradient_accumulation_steps": 4, 
-tuolumne1010:     "bf16": {
-tuolumne1010:         "enabled": true
-tuolumne1010:     }, 
-tuolumne1010:     "optimizer": {
-tuolumne1010:         "type": "AdamW", 
-tuolumne1010:         "params": {
-tuolumne1010:             "lr": 2e-05, 
-tuolumne1010:             "betas": [0.9, 0.999], 
-tuolumne1010:             "eps": 1e-08, 
-tuolumne1010:             "weight_decay": 0.1
-tuolumne1010:         }
-tuolumne1010:     }, 
-tuolumne1010:     "zero_optimization": {
-tuolumne1010:         "stage": 3, 
-tuolumne1010:         "overlap_comm": true, 
-tuolumne1010:         "contiguous_gradients": true, 
-tuolumne1010:         "reduce_scatter": true, 
-tuolumne1010:         "reduce_bucket_size": 5.000000e+08, 
-tuolumne1010:         "stage3_prefetch_bucket_size": 5.000000e+08, 
-tuolumne1010:         "stage3_param_persistence_threshold": 1.000000e+06, 
-tuolumne1010:         "stage3_max_live_parameters": 1.000000e+09, 
-tuolumne1010:         "stage3_max_reuse_distance": 1.000000e+09, 
-tuolumne1010:         "gather_16bit_weights_on_model_save": true
-tuolumne1010:     }, 
-tuolumne1010:     "steps_per_print": 1, 
-tuolumne1010:     "wall_clock_breakdown": false
-tuolumne1010: }
-tuolumne1010: DEBUG: Param model.embed_tokens.weight device: cuda:2
-tuolumne1011: DEBUG: Param model.embed_tokens.weight device: cuda:0
-tuolumne1010: DEBUG: Param model.embed_tokens.weight device: cuda:3
-tuolumne1011: DEBUG: Param model.embed_tokens.weight device: cuda:2DEBUG: Param model.embed_tokens.weight device: cuda:1
-tuolumne1011: 
-tuolumne1010: DEBUG: Param model.embed_tokens.weight device: cuda:1
-tuolumne1011: DEBUG: Param model.embed_tokens.weight device: cuda:3
-tuolumne1010: [2026-06-02 08:21:09,563] [INFO] [logging.py:96:log_dist] [Rank 0] step=1, skipped=0, lr=[2e-05], mom=[[0.9, 0.999]]
-tuolumne1010: DEBUG: Param model.embed_tokens.weight device: cuda:0
-tuolumne1010: Step 1 complete. Loss: 1.9737
-tuolumne1010: --- Saving checkpoint after step 1... ---
-tuolumne1011: Step 1 complete. Loss: 3.4315
-tuolumne1011: --- Saving checkpoint after step 1... ---
-tuolumne1010: [2026-06-02 08:21:10,163] [INFO] [logging.py:96:log_dist] [Rank 0] [Torch] Checkpoint step_1_checkpoint is about to be saved!
-tuolumne1011: [2026-06-02 08:21:10,174] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_4_mp_rank_00_model_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,174] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_6_mp_rank_00_model_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,174] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_3_mp_rank_00_model_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,175] [INFO] [logging.py:96:log_dist] [Rank 1] Saving model checkpoint: /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_1_mp_rank_00_model_states.pt
-tuolumne1010: [2026-06-02 08:21:10,175] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_2_mp_rank_00_model_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,175] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_1_mp_rank_00_model_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,175] [INFO] [logging.py:96:log_dist] [Rank 0] Saving model checkpoint: /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_0_mp_rank_00_model_states.pt
-tuolumne1010: [2026-06-02 08:21:10,175] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_0_mp_rank_00_model_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,175] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_7_mp_rank_00_model_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,176] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_5_mp_rank_00_model_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,204] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_7_mp_rank_00_model_states.pt.
-tuolumne1011: [2026-06-02 08:21:10,204] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_6_mp_rank_00_model_states.pt.
-tuolumne1011: [2026-06-02 08:21:10,204] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_4_mp_rank_00_model_states.pt.
-tuolumne1010: [2026-06-02 08:21:10,205] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_2_mp_rank_00_model_states.pt.
-tuolumne1011: [2026-06-02 08:21:10,206] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_5_mp_rank_00_model_states.pt.
-tuolumne1010: [2026-06-02 08:21:10,206] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_1_mp_rank_00_model_states.pt.
-tuolumne1010: [2026-06-02 08:21:10,206] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_0_mp_rank_00_model_states.pt.
-tuolumne1010: [2026-06-02 08:21:10,207] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/zero_pp_rank_3_mp_rank_00_model_states.pt.
-tuolumne1011: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_4_mp_rank_00_optim_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_7_mp_rank_00_optim_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_6_mp_rank_00_optim_states.pt...
-tuolumne1011: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_5_mp_rank_00_optim_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_1_mp_rank_00_optim_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_0_mp_rank_00_optim_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_2_mp_rank_00_optim_states.pt...
-tuolumne1010: [2026-06-02 08:21:10,211] [INFO] [torch_checkpoint_engine.py:21:save] [Torch] Saving /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_3_mp_rank_00_optim_states.pt...
-tuolumne1010: [2026-06-02 08:21:33,758] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_2_mp_rank_00_optim_states.pt.
-tuolumne1010: [2026-06-02 08:21:33,758] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_2_mp_rank_00_optim_states.pt
-tuolumne1011: [2026-06-02 08:21:34,438] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_7_mp_rank_00_optim_states.pt.
-tuolumne1011: [2026-06-02 08:21:34,439] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_7_mp_rank_00_optim_states.pt
-tuolumne1011: [2026-06-02 08:21:34,739] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_4_mp_rank_00_optim_states.pt.
-tuolumne1011: [2026-06-02 08:21:34,740] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_4_mp_rank_00_optim_states.pt
-tuolumne1011: [2026-06-02 08:21:35,100] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_6_mp_rank_00_optim_states.pt.
-tuolumne1011: [2026-06-02 08:21:35,101] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_6_mp_rank_00_optim_states.pt
-tuolumne1011: [2026-06-02 08:21:35,149] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_5_mp_rank_00_optim_states.pt.
-tuolumne1011: [2026-06-02 08:21:35,150] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_5_mp_rank_00_optim_states.pt
-tuolumne1010: [2026-06-02 08:21:35,191] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_1_mp_rank_00_optim_states.pt.
-tuolumne1010: [2026-06-02 08:21:35,192] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_1_mp_rank_00_optim_states.pt
-tuolumne1010: [2026-06-02 08:21:36,304] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_3_mp_rank_00_optim_states.pt.
-tuolumne1010: [2026-06-02 08:21:36,304] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_3_mp_rank_00_optim_states.pt
-tuolumne1010: [2026-06-02 08:21:36,457] [INFO] [torch_checkpoint_engine.py:23:save] [Torch] Saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_0_mp_rank_00_optim_states.pt.
-tuolumne1010: [2026-06-02 08:21:36,469] [INFO] [engine.py:3580:_save_zero_checkpoint] zero checkpoint saved /p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_checkpoint/bf16_zero_pp_rank_0_mp_rank_00_optim_states.pt
-tuolumne1011: [2026-06-02 08:21:36,484] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1011: [2026-06-02 08:21:36,484] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1010: [2026-06-02 08:21:36,484] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1011: [2026-06-02 08:21:36,484] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1010: [2026-06-02 08:21:36,484] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1010: [2026-06-02 08:21:36,485] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1010: [2026-06-02 08:21:36,485] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1011: [2026-06-02 08:21:36,485] [INFO] [torch_checkpoint_engine.py:33:commit] [Torch] Checkpoint step_1_checkpoint is ready now!
-tuolumne1011: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1011: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1011: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1011: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1010: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1010: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1010: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1010: --- Training finished after 1 step. Checkpoint saved. ---
-tuolumne1011: [2026-06-02 08:21:42,768] [INFO] [launch.py:351:main] Process 119753 exits successfully.
-tuolumne1010: [2026-06-02 08:21:43,266] [INFO] [launch.py:351:main] Process 88004 exits successfully.
-tuolumne1010: [2026-06-02 08:21:43,266] [INFO] [launch.py:351:main] Process 88005 exits successfully.
-tuolumne1011: [2026-06-02 08:21:43,769] [INFO] [launch.py:351:main] Process 119752 exits successfully.
-tuolumne1011: [2026-06-02 08:21:43,769] [INFO] [launch.py:351:main] Process 119754 exits successfully.
-tuolumne1011: [2026-06-02 08:21:43,769] [INFO] [launch.py:351:main] Process 119751 exits successfully.
-tuolumne1010: [2026-06-02 08:21:44,266] [INFO] [launch.py:351:main] Process 88003 exits successfully.
-tuolumne1010: [2026-06-02 08:21:44,267] [INFO] [launch.py:351:main] Process 88006 exits successfully.

@@ -63,6 +63,7 @@ set(CHECKERS_SOURCES
     src/logging.cpp
     src/MemoryManager.cpp
     src/TensorResource.cpp
+    src/TensorAnalyzer.cpp
 )
  
 # Tell CMake these files contain device code for the chosen backend.

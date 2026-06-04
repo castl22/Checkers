@@ -46,14 +46,11 @@ void MemoryManager::reset() {
     for (void* slab_ptr : active_slabs_) {
         if (slab_ptr) device_allocator_.deallocate(slab_ptr);
     }
-    for (void* d_rec : batch_device_records_) {
-        if (d_rec) device_allocator_.deallocate(d_rec);
-    }
+
     registry_.clear();
     ordered_names_.clear();
     buffer_plans_.clear();
     active_slabs_.clear();
-    batch_device_records_.clear();
     d_records_ = nullptr;
     record_count_ = 0;
     discovered_count_ = 0;
@@ -66,6 +63,107 @@ void MemoryManager::reset() {
     total_allocation_ms_ = 0.0;
     total_kernel_ms_ = 0.0;
     logger_.reset();
+}
+
+void MemoryManager::build_global_descriptor_array()
+{
+    // ------------------------------------------------------------
+    // GUARD: ensure we only build once per context
+    // ------------------------------------------------------------
+    if (global_descriptor_built_) {
+        return;
+    }
+
+    std::unique_lock lock(registry_mutex_);
+
+    // ------------------------------------------------------------
+    // Determine number of tensors
+    // ------------------------------------------------------------
+    record_count_ = registry_.size();
+
+    if (record_count_ == 0) {
+        global_descriptor_built_ = true;
+        return;
+    }
+
+    // ------------------------------------------------------------
+    // Allocate GPU persistent descriptor array
+    // ------------------------------------------------------------
+    d_records_ = static_cast<DeviceTensorRecord*>(
+        device_allocator_.allocate(
+            record_count_ * sizeof(DeviceTensorRecord)
+        )
+    );
+
+    // IMPORTANT: zero-init avoids garbage pointers on GPU
+    auto& rm = umpire::ResourceManager::getInstance();
+    rm.memset(d_records_, 0, record_count_ * sizeof(DeviceTensorRecord));
+
+    // ------------------------------------------------------------
+    // Build host-side staging buffer (ONE TIME ONLY)
+    // ------------------------------------------------------------
+    std::vector<DeviceTensorRecord> host_records;
+    host_records.reserve(record_count_);
+
+    for (const auto& name : ordered_names_) {
+
+        auto it = registry_.find(name);
+        if (it == registry_.end()) {
+            continue;
+        }
+
+        const TensorResource& tr = *it->second;
+        const TensorMetadata& meta = tr.get_meta();
+
+        DeviceTensorRecord rec{};
+
+        rec.d_data       = static_cast<float*>(tr.get_ptr());
+        rec.d_histogram  = meta.d_histogram;
+        rec.d_raw_moments = meta.d_raw_moments;
+        rec.d_minmax     = meta.d_minmax;
+
+        rec.num_elements  = meta.num_elements;
+        rec.histogram_bins = meta.histogram_bins;
+        rec.data_type     = static_cast<uint8_t>(meta.data_type);
+        rec.contiguity    = static_cast<uint8_t>(meta.contiguity);
+
+        host_records.push_back(rec);
+    }
+
+    lock.unlock();
+
+    // ------------------------------------------------------------
+    // Copy to GPU
+    // ------------------------------------------------------------
+ #if defined(RAJA_ENABLE_HIP)
+
+    hipError_t err_init = hipMemcpy(
+        d_records_,
+        host_records.data(),
+        record_count_ * sizeof(DeviceTensorRecord),
+        hipMemcpyHostToDevice);
+    if (err_init != hipSuccess) {
+        throw std::runtime_error(
+            std::string("hipMemcpy failed for global descriptors: ") + hipGetErrorString(err_init));
+    }
+
+#elif defined(RAJA_ENABLE_CUDA)
+
+    cudaError_t err_init = cudaMemcpy(
+        d_records_,
+        host_records.data(),
+        record_count_ * sizeof(DeviceTensorRecord),
+        cudaMemcpyHostToDevice);
+    if (err_init != cudaSuccess) {
+        throw std::runtime_error(
+            std::string("cudaMemcpy failed for global descriptors: ") + cudaGetErrorString(err_init));
+    }
+
+#else
+
+    throw std::runtime_error("No GPU backend enabled for descriptor copy");
+
+#endif
 }
 
 void MemoryManager::begin_pipeline(std::shared_ptr<RankLogger> logger,
@@ -199,30 +297,51 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
     }
 
     const auto pass1_start = std::chrono::steady_clock::now();
+
     const size_t batch_size = items.size();
+
     std::vector<BufferPlan> batch_plans;
+
+    // In C++, std::vector::reserve()` pre-allocates memory for a vector to hold at 
+    // least a specified number of elements, preventing frequent, costly reallocations.
     batch_plans.reserve(batch_size);
+
     size_t batch_slab_bytes = 0;
+
     std::vector<std::string> batch_names;
     batch_names.reserve(batch_size);
+
     std::vector<TensorResource*> batch_resources;
     batch_resources.reserve(batch_size);
 
-    {
+    // ==========================================================
+    // STEP 1: MOVE TENSORS INTO REGISTRY
+    // ==========================================================
+    { // lock the stuff
         std::unique_lock lock(registry_mutex_);
         for (auto& item : items) {
-            auto resource = std::make_unique<TensorResource>(item.device_ptr, item.byte_size, std::move(item.meta), device_allocator_);
+            
+            auto resource = std::make_unique<TensorResource>(
+                item.device_ptr, 
+                item.byte_size, 
+                std::move(item.meta), 
+                device_allocator_);
+
             TensorResource* resource_ptr = resource.get();
+
             ordered_names_.push_back(item.name);
+
             batch_names.push_back(item.name);
+
             registry_[item.name] = std::move(resource);
+
             batch_resources.push_back(resource_ptr);
         }
-    }
+    } // release lock
 
     for (size_t index = 0; index < batch_size; ++index) {
         TensorResource& tr = *batch_resources[index];
-        TensorMetadata& meta = tr.get_meta_mut();
+        TensorMetadata& meta = tr.get_meta_mut(); // mutable/writable, no lock
 
         const auto contiguity_start = std::chrono::steady_clock::now();
 
@@ -235,8 +354,11 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
         const auto contiguity_end = std::chrono::steady_clock::now();
 
         const auto planning_start = contiguity_end;
+
         BufferPlan plan = compute_buffer_plan(meta);
+
         const auto planning_end = std::chrono::steady_clock::now();
+
         meta.buffer_histogram_bytes = plan.histogram_bytes;
         meta.buffer_moments_bytes   = plan.moments_bytes;
         meta.buffer_minmax_bytes    = plan.minmax_bytes;
@@ -264,20 +386,39 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
     // ==========================================================
     // PASS 2: ALLOCATE ONE SLAB & PARCEL OUT OFFSETS FOR THIS BATCH
     // ==========================================================
-    std::lock_guard gpu_lock(gpu_ops_mutex_);
+
+    // ==========================================================
+    // STEP 3: ALLOCATE SLAB
+    // ==========================================================
+    // 1. Removed heavy global gpu_ops_mutex_ to prevent multi-rank driver stalling.
+
     const auto alloc_start = std::chrono::steady_clock::now();
+
+    // 2. Allocation happens concurrently across ranks now.
     void* batch_slab_base = device_allocator_.allocate(batch_slab_bytes);
+
     {
+        // 3. Isolated lock scope strictly for registering the active slab tracking.
         std::unique_lock lock(registry_mutex_);
         active_slabs_.push_back(batch_slab_base);
     }
+    // ❌ CHANGE #2: Heavy synchronous Umpire memset completely deleted.
+    // Zeroing is now handled out of the critical path by the parallel RAJA kernel below.
+
+    size_t cursor = 0;
+    // turn it into a byte-by-byte addressable pointer.
+    char* slab_bytes_ptr = static_cast<char*>(batch_slab_base);
 
     auto& rm = umpire::ResourceManager::getInstance();
     rm.memset(batch_slab_base, 0, batch_slab_bytes);
 
-    size_t cursor = 0;
-    char* slab_bytes_ptr = static_cast<char*>(batch_slab_base);
+    // size_t cursor = 0;
+    // // tunr it into a byte-by-byte addressable pointer.
+    // char* slab_bytes_ptr = static_cast<char*>(batch_slab_base);
 
+    // ==========================================================
+    // STEP 4: BUILD HOST DESCRIPTORS (TEMPORARY)
+    // ==========================================================
     std::vector<DeviceTensorRecord> host_records(batch_size);
 
     for (size_t i = 0; i < batch_size; ++i) {
@@ -285,21 +426,37 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
         TensorMetadata& meta = tr.get_meta_mut();
         BufferPlan& plan = batch_plans[i];
 
+        // You add your current byte offset to the start address of the master slab. This calculates the exact physical GPU memory address where the histogram data should live
         plan.slab_offset = cursor;
+        // Treat the GPU memory address at this exact location as an array of 32-bit unsigned integers.
+        // it is 32 because we want a swwt-spot between how many numbers we can represent, how mnay atomicAdds (moden GPUs can handle 32) and memory bandwidth.
+        // If 32 threads in a warp atomicAdd to the same memory location, the operation is serialized and takes 32 times longer than an uncontended write
         meta.d_histogram = reinterpret_cast<uint32_t*>(slab_bytes_ptr + cursor);
+        // Once you've allocated space for the histogram, you need to slide the cursor forward so the next buffer (the moments buffer) doesn't overwrite it.
+        // However, you don't just add the raw size (plan.histogram_bytes). Instead, you pass it through align_up
+        // GPUs are hyper-optimized for speed, but they have a strict rule: they want data arrays to start at specific hardware boundaries (usually multiples of 64, 128, or 256 bytes). If an array starts at an unaligned address, the GPU has to make multiple slow, inefficient memory trips to read a single value.
+        // If your histogram takes up 100 bytes, and your hardware alignment requirement (alignment_bytes_) is 64 bytes.
+        //
+        // The next perfect hardware boundary is 128 bytes.
+        //
+        // align_up(100, 64) will return 128.
+        //
+        // This leaves 28 bytes of empty "padding" space, ensuring that the next buffer (d_raw_moments) starts exactly at a clean 128-byte boundary where the GPU can access it at maximum speed.
         cursor += align_up(plan.histogram_bytes, alignment_bytes_);
         
-        meta.d_moments   = reinterpret_cast<float*>(slab_bytes_ptr + cursor);
+        meta.d_raw_moments   = reinterpret_cast<float*>(slab_bytes_ptr + cursor);
         cursor += align_up(plan.moments_bytes, alignment_bytes_);
         
         meta.d_minmax    = reinterpret_cast<float*>(slab_bytes_ptr + cursor);
         cursor += align_up(plan.minmax_bytes, alignment_bytes_);
 
         DeviceTensorRecord& rec = host_records[i];
+        // Populate the device tensor record with the allocated GPU memory addresses
         rec.d_data         = static_cast<float*>(tr.get_ptr());
         rec.d_histogram    = meta.d_histogram;
-        rec.d_moments      = meta.d_moments;
+        rec.d_raw_moments  = meta.d_raw_moments;
         rec.d_minmax       = meta.d_minmax;
+
         rec.num_elements   = meta.num_elements;
         rec.histogram_bins = meta.histogram_bins;
         rec.data_type      = static_cast<uint8_t>(meta.data_type);
@@ -314,16 +471,13 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
         }
     }
 
-    // Allocate an array descriptor for this block on the device
+    // ==========================================================
+    // STEP 5: ALLOCATE & UPLOAD BATCH DESCRIPTOR ARRAY
+    // ==========================================================
     DeviceTensorRecord* d_batch_recs = static_cast<DeviceTensorRecord*>(
         device_allocator_.allocate(batch_size * sizeof(DeviceTensorRecord)));
-    {
-        std::unique_lock lock(registry_mutex_);
-        batch_device_records_.push_back(d_batch_recs);
-    }
 
-    // Umpire does not own the raw STL buffer backing host_records, so use the device
-    // runtime directly for this host-to-device descriptor upload.
+    // Portable, error-checked host-to-device descriptor upload
 #if defined(RAJA_ENABLE_HIP)
     hipError_t copy_status = hipMemcpy(
         d_batch_recs,
@@ -349,34 +503,124 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
 #endif
 
     // ==========================================================
-    // BACKEND GPU WORKER LAUNCH
-    // Initializes the tracking values for all 10 tensors in parallel
+    // STEP 6: GPU INITIALIZATION KERNEL
     // ==========================================================
     const auto alloc_end = std::chrono::steady_clock::now();
     const auto kernel_start = std::chrono::steady_clock::now();
+
     RAJA::forall<DeviceExecPolicy>(
         RAJA::RangeSegment(0, static_cast<int>(batch_size)),
         [=] __device__ (int i) {
-            if (d_batch_recs[i].d_moments) {
-                for(int j = 0; j < 4; ++j) d_batch_recs[i].d_moments[j] = 0.0f;
+            // 1. Manually zero out the histogram bins for this tensor in parallel
+            if (d_batch_recs[i].d_histogram) {
+                for (int bin = 0; bin < d_batch_recs[i].histogram_bins; ++bin) {
+                    d_batch_recs[i].d_histogram[bin] = 0;
+                }
             }
+
+            // 2. Initialize moments
+            if (d_batch_recs[i].d_raw_moments) {
+                for(int j = 0; j < 4; ++j) d_batch_recs[i].d_raw_moments[j] = 0.0f;
+            }
+
+            // 3. Initialize min/max boundaries
             if (d_batch_recs[i].d_minmax) {
                 d_batch_recs[i].d_minmax[0] =  3.402823466e+38f;
                 d_batch_recs[i].d_minmax[1] = -3.402823466e+38f;
             }
         }
     );
-    device_synchronize();
+
+    // Synchronize to guarantee execution completes before measuring hardware timing
+    // device_synchronize();
     const auto kernel_end = std::chrono::steady_clock::now();
 
+    // ==========================================================
+    // STEP 7: COMPUTE TIME DELTAS FOR REPORTING
+    // ==========================================================
     const double pass1_ms = std::chrono::duration<double, std::milli>(pass1_end - pass1_start).count();
     const double allocation_ms = std::chrono::duration<double, std::milli>(alloc_end - alloc_start).count();
     const double kernel_ms = std::chrono::duration<double, std::milli>(kernel_end - kernel_start).count();
     size_t batch_index = 0;
+
+    // ==========================================================
+    // STEP 8: CRITICAL SECTION - UNIFIED GLOBAL TABLE & TELEMETRY
+    // ==========================================================
     {
+        // Using registry_mutex_ from your class definition to guard all shared state
         std::unique_lock lock(registry_mutex_);
+
+        // --- Part A: Amortized O(1) Global Table Management ---
+        const size_t old_size = global_host_records_.size();
+        const size_t new_size = old_size + batch_size;
+
+        // Maintain the host-side historical vector mirror
+        global_host_records_.insert(
+            global_host_records_.end(),
+            host_records.begin(),
+            host_records.end());
+
+        record_count_ = new_size;
+
+        // Check if GPU master buffer needs to grow exponentially
+        if (new_size > global_capacity_) {
+            size_t new_capacity = global_capacity_ == 0 ? 128 : global_capacity_ * 2;
+            if (new_capacity < new_size) {
+                new_capacity = new_size;
+            }
+
+            DeviceTensorRecord* d_new_records = static_cast<DeviceTensorRecord*>(
+                device_allocator_.allocate(new_capacity * sizeof(DeviceTensorRecord)));
+
+            // High-speed VRAM-to-VRAM migration bypasses the slow PCIe bus entirely
+            if (d_records_ && old_size > 0) {
+#if defined(RAJA_ENABLE_HIP)
+                hipError_t err_migrate = hipMemcpy(d_new_records, d_records_, old_size * sizeof(DeviceTensorRecord), hipMemcpyDeviceToDevice);
+                if (err_migrate != hipSuccess) {
+                    throw std::runtime_error(
+                        std::string("hipMemcpy failed for device-to-device migration: ") + hipGetErrorString(err_migrate));
+                }
+#elif defined(RAJA_ENABLE_CUDA)
+                cudaError_t err_migrate = cudaMemcpy(d_new_records, d_records_, old_size * sizeof(DeviceTensorRecord), cudaMemcpyDeviceToDevice);
+                if (err_migrate != cudaSuccess) {
+                    throw std::runtime_error(
+                        std::string("cudaMemcpy failed for device-to-device migration: ") + cudaGetErrorString(err_migrate));
+                }
+#endif
+                device_allocator_.deallocate(d_records_);
+            }
+
+            d_records_ = d_new_records;
+            global_capacity_ = new_capacity;
+        }
+
+        // Stream ONLY the fresh batch records over the bus directly to their offset location
+#if defined(RAJA_ENABLE_HIP)
+        hipError_t err_append = hipMemcpy(
+            d_records_ + old_size, 
+            host_records.data(), 
+            batch_size * sizeof(DeviceTensorRecord), 
+            hipMemcpyHostToDevice);
+        if (err_append != hipSuccess) {
+            throw std::runtime_error(
+                std::string("Batch append copy failed (HIP): ") + hipGetErrorString(err_append));
+        }
+#elif defined(RAJA_ENABLE_CUDA)
+        cudaError_t err_append = cudaMemcpy(
+            d_records_ + old_size, 
+            host_records.data(), 
+            batch_size * sizeof(DeviceTensorRecord), 
+            cudaMemcpyHostToDevice);
+        if (err_append != cudaSuccess) {
+            throw std::runtime_error(
+                std::string("Batch append copy failed (CUDA): ") + cudaGetErrorString(err_append));
+        }
+#endif
+
+        // --- Part B: Telemetry & Pro-Rated Category Bookkeeping ---
         std::array<size_t, tracked_tensor_category_count> category_tensor_counts{};
         std::array<size_t, tracked_tensor_category_count> category_buffer_bytes{};
+        
         for (size_t i = 0; i < batch_size; ++i) {
             const TensorMetadata& meta = batch_resources[i]->get_meta();
             const size_t category_idx = tensor_category_index(meta.category);
@@ -393,6 +637,7 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
             }
             TensorCategoryStats& stats = category_stats_[category_idx];
             ++stats.batch_count;
+            
             if (batch_slab_bytes > 0) {
                 const double buffer_share = static_cast<double>(category_buffer_bytes[category_idx]) / static_cast<double>(batch_slab_bytes);
                 stats.allocation_ms += allocation_ms * buffer_share;
@@ -400,12 +645,21 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
             stats.kernel_ms += kernel_ms * (static_cast<double>(category_tensor_counts[category_idx]) / static_cast<double>(batch_size));
         }
 
+        // --- Part C: Update Pipeline Global Totals ---
         total_pass1_ms_ += pass1_ms;
         total_allocation_ms_ += allocation_ms;
         total_kernel_ms_ += kernel_ms;
+        
         ++processed_batch_count_;
         batch_index = processed_batch_count_;
-    }
+    } 
+    // registry_mutex_ is automatically and safely dropped here
+
+    // ==========================================================
+    // STEP 9: CLEANUP TEMPORARY BATCH DESCRIPTORS (No VRAM Leaks)
+    // ==========================================================
+    device_allocator_.deallocate(d_batch_recs);
+
     (void)batch_index;
 }
 
@@ -522,6 +776,10 @@ std::array<TensorCategoryStats, tracked_tensor_category_count> MemoryManager::ge
 void MemoryManager::set_skipped_count(size_t skipped_count) {
     std::unique_lock lock(registry_mutex_);
     skipped_count_ = skipped_count;
+}
+
+size_t MemoryManager::record_count() const {
+    return record_count_;
 }
 
 // ------------------------------------------------------------------ //

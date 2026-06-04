@@ -7,6 +7,8 @@ from torch.utils.data import Dataset
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForLanguageModeling
 
+import time
+
 # Manually add the build directory to the path at runtime
 build_dir = "/usr/WS1/kogiou1/LLM_work/Checkers/build"
 if build_dir not in sys.path:
@@ -147,8 +149,12 @@ def main():
 
                 for name, param in model_engine.module.named_parameters():
                     if hasattr(param, "ds_tensor") and param.ds_tensor is not None:
-                        print(f"DEBUG: Param {name} device: {param.ds_tensor.device}")
+                        # Added both global and local rank here
+                        print(f"[Global Rank {model_engine.global_rank} | Local Rank {model_engine.local_rank}] "
+                            f"DEBUG: Param {name} device: {param.ds_tensor.device}")
                         break
+
+                start_time = time.perf_counter()
 
                 checkers_py.initialize_context(
                     model_engine,
@@ -156,6 +162,11 @@ def main():
                     histogram_bins=4096,
                     background_threads=4,
                 )
+
+                end_time = time.perf_counter()
+                # Added both global and local rank here
+                print(f"[Global Rank {model_engine.global_rank} | Local Rank {model_engine.local_rank}] "
+                    f"Context initialization time: {end_time - start_time:.4f} seconds")
 
             # --- SAVING LOGIC ---
             if model_engine.local_rank == 0:
