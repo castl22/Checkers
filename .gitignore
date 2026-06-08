@@ -5,3 +5,4 @@ examples/FSDP\ \(ZeRO-3\)/logs/
 exports/
 __pycache__/
 .DS_Store
+examples/FSDP_ZeRO3/logs/

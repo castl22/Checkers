@@ -64,6 +64,7 @@ set(CHECKERS_SOURCES
     src/MemoryManager.cpp
     src/TensorResource.cpp
     src/TensorAnalyzer.cpp
+    runtime/Utils.cpp
 )
  
 # Tell CMake these files contain device code for the chosen backend.
@@ -72,6 +73,8 @@ set(CHECKERS_SOURCES
 set_source_files_properties(
     src/MemoryManager.cpp
     src/TensorResource.cpp
+    src/TensorAnalyzer.cpp
+    runtime/Utils.cpp
     PROPERTIES LANGUAGE ${DEVICE_LANG}
 )
  
@@ -82,6 +85,7 @@ pybind11_add_module(checkers_py ${CHECKERS_SOURCES})
  
 target_include_directories(checkers_py PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime
     "/usr/workspace/kogiou1/RAJA/raja_install/include"
     "/usr/workspace/kogiou1/Umpire/umpire_install/include"
 )

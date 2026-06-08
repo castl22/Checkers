@@ -587,6 +587,7 @@ size_t discover_zero3_flat_states(py::object optimizer,
                                            lifetime_guard)) {
                     ++discovered; ++n_for_param;
                     tracked_names.push_back(pinfo.name);
+                    mgr.register_frozen_param(pinfo.name);
                 }
             } else if (py::hasattr(pinfo.param, "ds_tensor")
                        && !pinfo.param.attr("ds_tensor").is_none()) {
@@ -603,6 +604,7 @@ size_t discover_zero3_flat_states(py::object optimizer,
                                           ext, histogram_bins, ms)) {
                         ++discovered; ++n_for_param;
                         tracked_names.push_back(pinfo.name);
+                        mgr.register_frozen_param(pinfo.name);
                     }
                 }
             }
@@ -616,6 +618,8 @@ size_t discover_zero3_flat_states(py::object optimizer,
                                        py_list_func, histogram_bins, mgr,
                                        lifetime_guard)) {
                 ++discovered; ++n_for_param;
+                tracked_names.push_back("master_weights::" + pinfo.name);
+                mgr.register_frozen_param("master_weights::" + pinfo.name);
             }
 
             // Optimizer states – only available after the first real optimizer step
@@ -628,6 +632,8 @@ size_t discover_zero3_flat_states(py::object optimizer,
                                            py_list_func, histogram_bins, mgr,
                                            lifetime_guard)) {
                     ++discovered; ++n_for_param;
+                    tracked_names.push_back("optimizer.exp_avg::" + pinfo.name);
+                    mgr.register_frozen_param("optimizer.exp_avg::" + pinfo.name);
                 }
             }
             if (has_opt_state && !exp_avg_sq_flat.is_none()) {
@@ -639,6 +645,8 @@ size_t discover_zero3_flat_states(py::object optimizer,
                                            py_list_func, histogram_bins, mgr,
                                            lifetime_guard)) {
                     ++discovered; ++n_for_param;
+                    tracked_names.push_back("optimizer.exp_avg_sq::" + pinfo.name);
+                    mgr.register_frozen_param("optimizer.exp_avg_sq::" + pinfo.name);
                 }
             }
 
@@ -648,12 +656,26 @@ size_t discover_zero3_flat_states(py::object optimizer,
 
     // Log the tensor names tracked on this rank so operators can verify
     // that different ranks are tracking different parameter sets.
+    // if (logger) {
+    //     std::string msg = "[checkers][zero3][rank_tensors] rank="
+    //         + std::to_string(global_rank)
+    //         + " count=" + std::to_string(tracked_names.size());
+    //     for (const auto& n : tracked_names)
+    //         msg += "\n  " + n;
+    //     logger->log_message(msg);
+    // }
     if (logger) {
-        std::string msg = "[checkers][zero3][rank_tensors] rank="
+        std::string msg =
+            "[checkers][zero3][tracked_tensors] rank="
             + std::to_string(global_rank)
-            + " count=" + std::to_string(tracked_names.size());
+            + " discovered="
+            + std::to_string(discovered)
+            + " names="
+            + std::to_string(tracked_names.size());
+
         for (const auto& n : tracked_names)
             msg += "\n  " + n;
+
         logger->log_message(msg);
     }
 
@@ -956,12 +978,14 @@ void initialize_context(py::object model_engine,
                 lifetime_guard.push_back(param);
                 const double tensor_discovery_ms = std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - tensor_discovery_start).count();
-                submit_extraction(mgr,
-                                  name,
-                                  TensorCategory::ModelState,
-                                  extraction,
-                                  histogram_bins,
-                                  tensor_discovery_ms);
+                if (submit_extraction(mgr,
+                                      name,
+                                      TensorCategory::ModelState,
+                                      extraction,
+                                      histogram_bins,
+                                      tensor_discovery_ms)) {
+                    mgr.register_param(name, param, true);
+                }
             }
         }
 
@@ -1004,21 +1028,226 @@ void initialize_context(py::object model_engine,
     }
 }
 
-void analyze_model() {
-    auto& mgr = MemoryManager::instance();
+void analyze_tensors() {
+    try {
+        auto& mgr = MemoryManager::instance();
+        auto logger = mgr.get_logger(); // Pull from manager
+        
+        if (!logger) {
+            throw std::runtime_error("Context not initialized: MemoryManager logger is null.");
+        }
 
-    TensorAnalyzer analyzer;
+        TensorAnalyzer analyzer;
 
-    DeviceTensorRecord* d_records = mgr.device_records();
-    size_t record_count = mgr.record_count();
+        DeviceTensorRecord* d_records = mgr.device_records();
+        size_t record_count = mgr.record_count();
+        if (!d_records || record_count == 0) return;
+        const auto& host_records = mgr.host_records();
+        const size_t active_records = std::min(record_count, host_records.size());
+        if (active_records == 0) return;
 
-    if (!d_records || record_count == 0) {
-        return;
+        logger->log_message("[checkers] analyze_tensors begin");
+
+
+        logger->log_message("[checkers] analyze_tensors pointer policy=cached_discovery_ptrs records="
+                            + std::to_string(record_count)
+                            + " host_records=" + std::to_string(host_records.size()));
+
+        const bool debug_record_sync = []() {
+            const char* v = std::getenv("CHECKERS_ANALYZE_DEBUG_SYNC");
+            return v != nullptr && std::string(v) != "0";
+        }();
+
+        auto sync_or_throw = [&](const std::string& stage,
+                                 size_t index,
+                                 const std::string& name) {
+#if defined(__HIP_PLATFORM_AMD__) || defined(RAJA_ENABLE_HIP)
+            hipError_t status = hipDeviceSynchronize();
+            if (status == hipSuccess) return;
+            std::string msg = "[checkers] analyze sync failed backend=HIP stage=" + stage
+                            + " error=" + std::string(hipGetErrorString(status));
+#else
+            cudaError_t status = cudaDeviceSynchronize();
+            if (status == cudaSuccess) return;
+            std::string msg = "[checkers] analyze sync failed backend=CUDA stage=" + stage
+                            + " error=" + std::string(cudaGetErrorString(status));
+#endif
+            if (index != static_cast<size_t>(-1)) {
+                msg += " index=" + std::to_string(index) + " name=" + name;
+            }
+            logger->log_message(msg);
+            throw std::runtime_error(msg);
+        };
+
+        size_t suspect_count = 0;
+        for (size_t i = 0; i < active_records; ++i) {
+            const auto& rec = host_records[i];
+            if (rec.d_ptr == nullptr || rec.num_elements == 0) {
+                ++suspect_count;
+                logger->log_message("[checkers] analyze suspect_record index="
+                                    + std::to_string(i)
+                                    + " name=" + mgr.get_name_from_index(i)
+                                    + " d_ptr=" + std::to_string(reinterpret_cast<uintptr_t>(rec.d_ptr))
+                                    + " num_elements=" + std::to_string(rec.num_elements)
+                                    + " dtype=" + std::to_string(static_cast<int>(rec.data_type)));
+            }
+        }
+        if (suspect_count > 0) {
+            logger->log_message("[checkers] analyze suspect_record_count=" + std::to_string(suspect_count));
+        }
+
+        // Upload the complete host-side record mirror to the GPU descriptor array
+        // in one bulk transfer. Workers populate global_host_records_ (CPU) but
+        // deliberately do NOT touch d_records_ (GPU) so that no synchronous GPU
+        // copy ever runs while holding registry_mutex_ in a worker thread.
+#if defined(__HIP_PLATFORM_AMD__) || defined(RAJA_ENABLE_HIP)
+        {
+            hipError_t upload_err = hipMemcpy(
+                d_records,
+                host_records.data(),
+                active_records * sizeof(DeviceTensorRecord),
+                hipMemcpyHostToDevice);
+            if (upload_err != hipSuccess) {
+                throw std::runtime_error(
+                    std::string("[checkers] hipMemcpy failed uploading descriptors to GPU: ")
+                    + hipGetErrorString(upload_err));
+            }
+        }
+#else
+        {
+            cudaError_t upload_err = cudaMemcpy(
+                d_records,
+                host_records.data(),
+                active_records * sizeof(DeviceTensorRecord),
+                cudaMemcpyHostToDevice);
+            if (upload_err != cudaSuccess) {
+                throw std::runtime_error(
+                    std::string("[checkers] cudaMemcpy failed uploading descriptors to GPU: ")
+                    + cudaGetErrorString(upload_err));
+            }
+        }
+#endif
+
+        // Pre-flight sync: catch any GPU error from initialize_context before
+        // launching analysis kernels so the error is reported clearly rather
+        // than as a silent hang inside a later hipDeviceSynchronize.
+        sync_or_throw("preflight", static_cast<size_t>(-1), "");
+
+        const auto start = std::chrono::steady_clock::now();
+
+        // 1. Histograms & Moments
+        // Single batched launch: all tensors submitted in one call, one block each.
+        // The GPU schedules all blocks concurrently; dtype is dispatched per-record
+        // inside tensor_stats_kernel, so mixed fp16/fp32 batches are handled correctly.
+        const auto hist_start = std::chrono::steady_clock::now();
+        if (debug_record_sync) {
+            for (size_t i = 0; i < active_records; ++i) {
+                const DataType dtype = static_cast<DataType>(host_records[i].data_type);
+                analyzer.launch_tensor_analysis(d_records + i, 1, dtype, nullptr);
+                sync_or_throw("hist", i, mgr.get_name_from_index(i));
+            }
+        } else {
+            analyzer.launch_tensor_analysis(d_records, active_records, DataType::Unknown, nullptr);
+            sync_or_throw("hist_batch", static_cast<size_t>(-1), "");
+        }
+        const double hist_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - hist_start).count();
+
+        // 2. Finalize
+        const auto fin_start = std::chrono::steady_clock::now();
+        if (debug_record_sync) {
+            for (size_t i = 0; i < active_records; ++i) {
+                analyzer.finalize_statistics(d_records + i, 1);
+                sync_or_throw("finalize", i, mgr.get_name_from_index(i));
+            }
+        } else {
+            analyzer.finalize_statistics(d_records, active_records);
+            sync_or_throw("finalize_batch", static_cast<size_t>(-1), "");
+        }
+        const double fin_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - fin_start).count();
+
+        // 3. Fingerprints
+        const auto fing_start = std::chrono::steady_clock::now();
+        if (debug_record_sync) {
+            for (size_t i = 0; i < active_records; ++i) {
+                analyzer.compute_fingerprints(d_records + i, 1);
+                sync_or_throw("fingerprint", i, mgr.get_name_from_index(i));
+            }
+        } else {
+            analyzer.compute_fingerprints(d_records, active_records);
+            sync_or_throw("fingerprint_batch", static_cast<size_t>(-1), "");
+        }
+        const double fing_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - fing_start).count();
+
+        // 4. Copy fingerprints from GPU to CPU fingerprint_stage_ so weight
+        //    computation can read them without accessing device memory on host.
+        {
+            auto& fp_cpu = mgr.get_fingerprints_mut();
+            fp_cpu.resize(active_records);
+            const auto& hr = mgr.host_records();
+            for (size_t i = 0; i < active_records; ++i) {
+                if (hr[i].d_fingerprint) {
+                    TensorFingerprint tmp{};
+#if defined(__HIP_PLATFORM_AMD__) || defined(RAJA_ENABLE_HIP)
+                    hipError_t copy_err = hipMemcpy(&tmp, hr[i].d_fingerprint,
+                              sizeof(TensorFingerprint), hipMemcpyDeviceToHost);
+                    if (copy_err != hipSuccess) {
+                        logger->log_message("[checkers] fingerprint copy failed index="
+                            + std::to_string(i) + " error=" + hipGetErrorString(copy_err));
+                    }
+#else
+                    cudaError_t copy_err = cudaMemcpy(&tmp, hr[i].d_fingerprint,
+                               sizeof(TensorFingerprint), cudaMemcpyDeviceToHost);
+                    if (copy_err != cudaSuccess) {
+                        logger->log_message("[checkers] fingerprint copy failed index="
+                            + std::to_string(i) + " error=" + cudaGetErrorString(copy_err));
+                    }
+#endif
+                    fp_cpu[i].values[0] = static_cast<double>(tmp.values[0]);
+                    fp_cpu[i].values[1] = static_cast<double>(tmp.values[1]);
+                    fp_cpu[i].values[2] = static_cast<double>(tmp.values[2]);
+                    fp_cpu[i].values[3] = static_cast<double>(tmp.values[3]);
+                    fp_cpu[i].values[4] = static_cast<double>(tmp.values[4]);
+                } else {
+                    fp_cpu[i] = Fingerprint{};
+                }
+            }
+        }
+
+        // 5. Compute importance-weighted fingerprint weights from cross-category variance.
+        const auto weight_start = std::chrono::steady_clock::now();
+        analyzer.compute_fingerprint_weights(mgr, d_records, active_records, logger);
+        const double weight_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - weight_start).count();
+
+        // 6. Apply weights to the fingerprint values on GPU.
+        const auto apply_start = std::chrono::steady_clock::now();
+        analyzer.apply_fingerprint_weights(d_records, active_records, nullptr);
+        sync_or_throw("apply_fingerprint_weights", static_cast<size_t>(-1), "");
+        const double apply_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - apply_start).count();
+        
+        logger->log_message("[checkers] building fingerprint KNN clusters");
+
+        const auto knn_start = std::chrono::steady_clock::now();
+        analyzer.set_logger(logger);
+        analyzer.build_knn_clusters(d_records, active_records, 4, nullptr);
+        sync_or_throw("knn_clusters", static_cast<size_t>(-1), "");
+        const double knn_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - knn_start).count();
+
+        const double total_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+
+        // Log the timing
+        logger->log_message("[TIMING] analyze_histograms_ms=" + std::to_string(hist_ms));
+        logger->log_message("[TIMING] analyze_finalize_ms=" + std::to_string(fin_ms));
+        logger->log_message("[TIMING] analyze_fingerprints_ms=" + std::to_string(fing_ms));
+        logger->log_message("[TIMING] analyze_fingerprint_weights_ms=" + std::to_string(weight_ms));
+        logger->log_message("[TIMING] analyze_apply_weights_ms=" + std::to_string(apply_ms));
+        logger->log_message("[TIMING] analyze_knn_clusters_ms=" + std::to_string(knn_ms));
+        logger->log_message("[TIMING] analyze_total_ms=" + std::to_string(total_ms));
+
+    } catch (const std::exception& e) {
+        // Print to stderr so the cluster manager captures it
+        std::cerr << "[CHECKERS CRITICAL ERROR] " << e.what() << std::endl;
+        throw; // Re-throw to inform Python
     }
-
-    analyzer.compute_histograms_and_moments(d_records, record_count);
-    analyzer.finalize_statistics(d_records, record_count);
-    analyzer.compute_fingerprints(d_records, record_count);
 }
 
 void compress_and_save(const std::string& output_path) {

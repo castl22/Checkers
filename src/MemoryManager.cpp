@@ -62,6 +62,8 @@ void MemoryManager::reset() {
     total_pass1_ms_ = 0.0;
     total_allocation_ms_ = 0.0;
     total_kernel_ms_ = 0.0;
+    param_registry_.clear();
+    fingerprint_stage_.clear();
     logger_.reset();
 }
 
@@ -85,6 +87,15 @@ void MemoryManager::build_global_descriptor_array()
         global_descriptor_built_ = true;
         return;
     }
+
+    ordered_names_.clear();
+    ordered_names_.reserve(registry_.size());
+
+    for (const auto& kv : registry_) {
+        ordered_names_.push_back(kv.first);
+    }
+
+    std::sort(ordered_names_.begin(), ordered_names_.end());
 
     // ------------------------------------------------------------
     // Allocate GPU persistent descriptor array
@@ -117,7 +128,8 @@ void MemoryManager::build_global_descriptor_array()
 
         DeviceTensorRecord rec{};
 
-        rec.d_data       = static_cast<float*>(tr.get_ptr());
+        rec.name = name.c_str();
+        rec.d_ptr = tr.get_ptr();
         rec.d_histogram  = meta.d_histogram;
         rec.d_raw_moments = meta.d_raw_moments;
         rec.d_minmax     = meta.d_minmax;
@@ -402,7 +414,7 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
         std::unique_lock lock(registry_mutex_);
         active_slabs_.push_back(batch_slab_base);
     }
-    // ❌ CHANGE #2: Heavy synchronous Umpire memset completely deleted.
+    // Heavy synchronous Umpire memset completely deleted.
     // Zeroing is now handled out of the critical path by the parallel RAJA kernel below.
 
     size_t cursor = 0;
@@ -450,12 +462,16 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
         meta.d_minmax    = reinterpret_cast<float*>(slab_bytes_ptr + cursor);
         cursor += align_up(plan.minmax_bytes, alignment_bytes_);
 
+        meta.d_fingerprint = reinterpret_cast<TensorFingerprint*>(slab_bytes_ptr + cursor);
+        cursor += align_up(plan.fingerprint_bytes, alignment_bytes_);
+
         DeviceTensorRecord& rec = host_records[i];
+        rec.d_ptr          = tr.get_ptr();
         // Populate the device tensor record with the allocated GPU memory addresses
-        rec.d_data         = static_cast<float*>(tr.get_ptr());
         rec.d_histogram    = meta.d_histogram;
         rec.d_raw_moments  = meta.d_raw_moments;
         rec.d_minmax       = meta.d_minmax;
+        rec.d_fingerprint  = meta.d_fingerprint;
 
         rec.num_elements   = meta.num_elements;
         rec.histogram_bins = meta.histogram_bins;
@@ -503,37 +519,22 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
 #endif
 
     // ==========================================================
-    // STEP 6: GPU INITIALIZATION KERNEL
+    // STEP 6: NO GPU INIT KERNEL NEEDED.
+    // rm.memset (above) already zeroed the entire slab synchronously.
+    // tensor_stats_kernel overwrites d_histogram, d_raw_moments,
+    // d_minmax, and d_fingerprint entirely during analysis, so there
+    // is nothing to pre-initialize here.
+    //
+    // The previous async RAJA init kernel caused a ~22-second stall:
+    // it ran with only `batch_size` threads (4) each looping over
+    // 4096 histogram bins sequentially (terrible utilization), was
+    // launched asynchronously on the default stream, and the first
+    // synchronous hipMemcpy in analyze_tensors had to drain all 42
+    // queued instances before the DMA could start.
     // ==========================================================
-    const auto alloc_end = std::chrono::steady_clock::now();
-    const auto kernel_start = std::chrono::steady_clock::now();
-
-    RAJA::forall<DeviceExecPolicy>(
-        RAJA::RangeSegment(0, static_cast<int>(batch_size)),
-        [=] __device__ (int i) {
-            // 1. Manually zero out the histogram bins for this tensor in parallel
-            if (d_batch_recs[i].d_histogram) {
-                for (int bin = 0; bin < d_batch_recs[i].histogram_bins; ++bin) {
-                    d_batch_recs[i].d_histogram[bin] = 0;
-                }
-            }
-
-            // 2. Initialize moments
-            if (d_batch_recs[i].d_raw_moments) {
-                for(int j = 0; j < 4; ++j) d_batch_recs[i].d_raw_moments[j] = 0.0f;
-            }
-
-            // 3. Initialize min/max boundaries
-            if (d_batch_recs[i].d_minmax) {
-                d_batch_recs[i].d_minmax[0] =  3.402823466e+38f;
-                d_batch_recs[i].d_minmax[1] = -3.402823466e+38f;
-            }
-        }
-    );
-
-    // Synchronize to guarantee execution completes before measuring hardware timing
-    // device_synchronize();
-    const auto kernel_end = std::chrono::steady_clock::now();
+    const auto alloc_end    = std::chrono::steady_clock::now();
+    const auto kernel_start = alloc_end;   // nothing to time
+    const auto kernel_end   = alloc_end;
 
     // ==========================================================
     // STEP 7: COMPUTE TIME DELTAS FOR REPORTING
@@ -561,6 +562,8 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
             host_records.end());
 
         record_count_ = new_size;
+
+        fingerprint_stage_.resize(record_count_);
 
         // Check if GPU master buffer needs to grow exponentially
         if (new_size > global_capacity_) {
@@ -594,28 +597,51 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
             global_capacity_ = new_capacity;
         }
 
-        // Stream ONLY the fresh batch records over the bus directly to their offset location
-#if defined(RAJA_ENABLE_HIP)
-        hipError_t err_append = hipMemcpy(
-            d_records_ + old_size, 
-            host_records.data(), 
-            batch_size * sizeof(DeviceTensorRecord), 
-            hipMemcpyHostToDevice);
-        if (err_append != hipSuccess) {
-            throw std::runtime_error(
-                std::string("Batch append copy failed (HIP): ") + hipGetErrorString(err_append));
+        if (new_size > fingerprint_capacity_) {
+
+    size_t new_capacity =
+        fingerprint_capacity_ == 0 ? 128 : fingerprint_capacity_ * 2;
+
+    if (new_capacity < new_size)
+        new_capacity = new_size;
+
+    Fingerprint* new_buf =
+        static_cast<Fingerprint*>(
+            device_allocator_.allocate(new_capacity * sizeof(Fingerprint)));
+
+    if (d_fingerprint_buffer_) {
+        #if defined(RAJA_ENABLE_HIP)
+                hipError_t err_finger = hipMemcpy(new_buf,
+                        d_fingerprint_buffer_,
+                        fingerprint_capacity_ * sizeof(Fingerprint),
+                        hipMemcpyDeviceToDevice);
+                if (err_finger != hipSuccess) {
+                    throw std::runtime_error(
+                        std::string("hipMemcpy failed for device-to-device migration: ") + hipGetErrorString(err_finger));
+                }
+        #else
+                cudaError_t err_finger = cudaMemcpy(new_buf,
+                        d_fingerprint_buffer_,
+                        fingerprint_capacity_ * sizeof(Fingerprint),
+                        cudaMemcpyDeviceToDevice);
+                if (err_finger != cudaSuccess) {
+                    throw std::runtime_error(
+                        std::string("cudaMemcpy failed for device-to-device migration: ") + cudaGetErrorString(err_finger));
+                }
+        #endif
+                device_allocator_.deallocate(d_fingerprint_buffer_);
+            }
+
+            d_fingerprint_buffer_ = new_buf;
+            fingerprint_capacity_ = new_capacity;
         }
-#elif defined(RAJA_ENABLE_CUDA)
-        cudaError_t err_append = cudaMemcpy(
-            d_records_ + old_size, 
-            host_records.data(), 
-            batch_size * sizeof(DeviceTensorRecord), 
-            cudaMemcpyHostToDevice);
-        if (err_append != cudaSuccess) {
-            throw std::runtime_error(
-                std::string("Batch append copy failed (CUDA): ") + cudaGetErrorString(err_append));
-        }
-#endif
+
+        // NOTE: d_records_ (GPU) is intentionally NOT populated here.
+        // analyze_tensors() does one bulk hipMemcpy of global_host_records_ → d_records_
+        // just before launching kernels. Keeping GPU copies out of this critical section
+        // avoids: (a) serializing all worker threads through a synchronous GPU transfer,
+        // and (b) the implicit hipDeviceSynchronize that a synchronous hipMemcpy implies
+        // (which would add ~42 full GPU syncs during initialization for 42 batches).
 
         // --- Part B: Telemetry & Pro-Rated Category Bookkeeping ---
         std::array<size_t, tracked_tensor_category_count> category_tensor_counts{};
@@ -666,15 +692,17 @@ void MemoryManager::process_batch(std::vector<PendingTensor> items) {
 BufferPlan MemoryManager::compute_buffer_plan(const TensorMetadata& meta) const {
     BufferPlan plan{};
     const size_t bins = meta.histogram_bins > 0 ? meta.histogram_bins : default_histogram_bins_;
-    plan.histogram_bytes = bins * sizeof(uint32_t);
-    plan.moments_bytes   = 4 * sizeof(float);   
-    plan.minmax_bytes    = 2 * sizeof(float);    
+    plan.histogram_bytes   = bins * sizeof(uint32_t);
+    plan.moments_bytes     = 4 * sizeof(float);
+    plan.minmax_bytes      = 2 * sizeof(float);
+    plan.fingerprint_bytes = sizeof(TensorFingerprint);
     size_t total = 0;
-    total += align_up(plan.histogram_bytes, alignment_bytes_);
-    total += align_up(plan.moments_bytes,   alignment_bytes_);
-    total += align_up(plan.minmax_bytes,    alignment_bytes_);
-    plan.total_bytes  = total;
-    plan.slab_offset  = 0; 
+    total += align_up(plan.histogram_bytes,   alignment_bytes_);
+    total += align_up(plan.moments_bytes,     alignment_bytes_);
+    total += align_up(plan.minmax_bytes,      alignment_bytes_);
+    total += align_up(plan.fingerprint_bytes, alignment_bytes_);
+    plan.total_bytes = total;
+    plan.slab_offset = 0;
     return plan;
 }
 
@@ -780,6 +808,61 @@ void MemoryManager::set_skipped_count(size_t skipped_count) {
 
 size_t MemoryManager::record_count() const {
     return record_count_;
+}
+
+void MemoryManager::register_param(const std::string& name,
+                                   py::object param,
+                                   bool allow_pointer_refresh) {
+    std::unique_lock lock(registry_mutex_);
+    param_registry_[name] = ParamBinding{std::move(param), allow_pointer_refresh};
+}
+
+void MemoryManager::register_frozen_param(const std::string& name) {
+    std::unique_lock lock(registry_mutex_);
+    param_registry_[name] = ParamBinding{py::none(), false};
+}
+
+py::object MemoryManager::get_param(const std::string& name) const {
+    std::shared_lock lock(registry_mutex_);
+    return param_registry_.at(name).object;
+}
+
+bool MemoryManager::has_param(
+    const std::string& name) const
+{
+    std::shared_lock lock(registry_mutex_);
+    auto it = param_registry_.find(name);
+
+    if (it == param_registry_.end()) {
+        std::cout << "[checkers] NOT FOUND: " << name << std::endl;
+
+        std::cout << "[checkers] Registry contains "
+                  << param_registry_.size()
+                  << " entries" << std::endl;
+
+        if (!param_registry_.empty()) {
+            std::cout << "[checkers] Example key: "
+                      << param_registry_.begin()->first
+                      << std::endl;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+bool MemoryManager::can_refresh_param(const std::string& name) const {
+    std::shared_lock lock(registry_mutex_);
+    auto it = param_registry_.find(name);
+    if (it == param_registry_.end()) {
+        return false;
+    }
+    return it->second.allow_pointer_refresh;
+}
+
+const std::string& MemoryManager::get_name_from_index(size_t i) const {
+    return ordered_names_.at(i);
 }
 
 // ------------------------------------------------------------------ //

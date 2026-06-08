@@ -18,9 +18,12 @@
 //
 // Nothing computes statistics here -- that is the job of the analysis
 // kernel layer that comes later.
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
 
 #include "TensorResource.hpp"
 #include "logging.hpp"
+#include "TensorFingerprint.hpp"
 
 #include <RAJA/RAJA.hpp>
 #include <umpire/Umpire.hpp>
@@ -55,7 +58,8 @@ inline void device_synchronize() {
 //  RAJA kernels can read them without host round-trips.
 // ------------------------------------------------------------------ //
 struct DeviceTensorRecord {
-    float* d_data;
+    const char* name;
+    void* d_ptr;
     uint32_t* d_histogram;
     float* d_raw_moments;
     TensorStatistics* d_statistics;
@@ -71,11 +75,12 @@ struct DeviceTensorRecord {
 //  Per-tensor buffer plan (host side, computed dynamically per batch)
 // ------------------------------------------------------------------ //
 struct BufferPlan {
-    size_t histogram_bytes; // bins * sizeof(uint32_t)
-    size_t moments_bytes;   // 4 * sizeof(float)
-    size_t minmax_bytes;    // 2 * sizeof(float)
-    size_t total_bytes;     // aligned sum
-    size_t slab_offset;     // byte offset into its local batch slab allocation
+    size_t histogram_bytes;   // bins * sizeof(uint32_t)
+    size_t moments_bytes;     // 4 * sizeof(float)
+    size_t minmax_bytes;      // 2 * sizeof(float)
+    size_t fingerprint_bytes; // sizeof(TensorFingerprint)
+    size_t total_bytes;       // aligned sum
+    size_t slab_offset;       // byte offset into its local batch slab allocation
 };
 
 // ------------------------------------------------------------------ //
@@ -85,6 +90,8 @@ class MemoryManager {
 public:
     // Singleton
     static MemoryManager& instance();
+    std::shared_ptr<RankLogger> get_logger() { return logger_; }
+    void set_logger(std::shared_ptr<RankLogger> logger) { logger_ = logger; }
 
     void reset();
     void begin_pipeline(std::shared_ptr<RankLogger> logger,
@@ -132,8 +139,32 @@ public:
     void set_default_histogram_bins(size_t bins) { default_histogram_bins_ = bins; }
     void set_alignment_bytes(size_t align)        { alignment_bytes_ = align; }
     void build_global_descriptor_array();
+    void register_param(const std::string& name,
+                        py::object param,
+                        bool allow_pointer_refresh = true);
+    void register_frozen_param(const std::string& name);
+    py::object get_param(const std::string& name) const;
+    bool has_param(const std::string& name) const;
+    bool can_refresh_param(const std::string& name) const;
+
+    std::vector<DeviceTensorRecord>& host_records() {
+        return global_host_records_;
+    }
+
+    const std::vector<DeviceTensorRecord>& host_records() const {
+        return global_host_records_;
+    }
+    const std::string& get_name_from_index(size_t i) const;
+    const std::vector<Fingerprint>& get_fingerprints() const {
+        return fingerprint_stage_;
+    }
+
+    std::vector<Fingerprint>& get_fingerprints_mut() {
+        return fingerprint_stage_;
+    }
 
 private:
+
     MemoryManager();
     ~MemoryManager();
 
@@ -204,6 +235,16 @@ private:
 
     std::vector<DeviceTensorRecord> global_host_records_;
     size_t                          global_capacity_ = 0;
+
+    struct ParamBinding {
+        py::object object;
+        bool allow_pointer_refresh = false;
+    };
+
+    std::unordered_map<std::string, ParamBinding> param_registry_;
+    std::vector<Fingerprint> fingerprint_stage_;
+    Fingerprint* d_fingerprint_buffer_ = nullptr;
+    size_t fingerprint_capacity_ = 0;
 };
 
 } // namespace checkers

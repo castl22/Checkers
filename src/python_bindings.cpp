@@ -9,12 +9,13 @@ namespace checkers {
                                           py::object optimizer,
                                           size_t histogram_bins,
                                           size_t background_threads);
-      void analyze_model();
+      void analyze_tensors();
       void compress_and_save(const std::string& output_path);
 }
 
 // 2. This is the crucial gatekeeper that Python looks for!
 PYBIND11_MODULE(checkers_py, m) {
+
     m.doc() = "Checkers LLM Memory Tracking Extension";
 
     m.def("initialize_context",
@@ -25,8 +26,8 @@ PYBIND11_MODULE(checkers_py, m) {
           py::arg("background_threads") = 1,
           "Initializes Umpire memory resources and cluster context");
 
-   m.def("analyze_model",
-      &checkers::analyze_model,
+    m.def("analyze_tensors",
+      &checkers::analyze_tensors,
       "Analyzes tracked model parameters inside the MemoryManager");
 
     m.def("compress_and_save", &checkers::compress_and_save, 
