@@ -1,4 +1,5 @@
 #include "checkers/api.hpp"
+#include "checkers/ANSCompressor.hpp"
 #include "checkers/MemoryManager.hpp"
 #include "checkers/TensorAnalyzer.hpp"
 #include "checkers/logging.hpp"
@@ -10,6 +11,7 @@
 #include <string>
 #include <cstdlib>
 #include <stdexcept>
+#include <thread>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -1251,10 +1253,49 @@ void analyze_tensors() {
 }
 
 void compress_and_save(const std::string& output_path) {
-    auto& mgr = MemoryManager::instance();
-    mgr.report_memory_usage();
-    
-    std::cout << "[checkers] Saving analysis to: " << output_path << std::endl;
+    try {
+        const auto total_t0 = std::chrono::steady_clock::now();
+
+        auto& mgr = MemoryManager::instance();
+        auto logger = mgr.get_logger();
+
+        if (!logger) {
+            throw std::runtime_error("Context not initialized: call initialize_context first.");
+        }
+
+        mgr.report_memory_usage();
+
+        logger->log_message("[checkers] compress_and_save begin output=" + output_path);
+
+        // ---- Consume cluster assignments written by TensorAnalyzer::build_knn_clusters ----
+        const ClusterInfo& clusters = mgr.get_cluster_info();
+
+        size_t n_clusters  = 0;
+        size_t n_singletons = 0;
+        for (const auto& kv : clusters.tensor_to_cluster) {
+            if (kv.second == -1) ++n_singletons;
+            else                 n_clusters = std::max(n_clusters, (size_t)(kv.second + 1));
+        }
+        logger->log_message("[ANS] using_knn_clusters=" + std::to_string(n_clusters) +
+                            " singletons=" + std::to_string(n_singletons));
+
+        // ---- Determine worker count: one per CPU core, capped at 8 ----
+        const size_t hw_threads = std::max<size_t>(1,
+            static_cast<size_t>(std::thread::hardware_concurrency()));
+        const size_t n_workers  = std::min<size_t>(hw_threads, 8u);
+
+        // ---- Compress and save all tensors ----
+        ANSCompressor compressor(logger, n_workers);
+        compressor.compress_and_save_all(clusters, mgr, output_path);
+
+        const double total_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - total_t0).count();
+        logger->log_message("[TIMING] compress_and_save_wall_ms=" + std::to_string(total_ms));
+
+    } catch (const std::exception& e) {
+        std::cerr << "[CHECKERS CRITICAL ERROR] compress_and_save: " << e.what() << std::endl;
+        throw;
+    }
 }
 
 }

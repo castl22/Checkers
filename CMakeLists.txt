@@ -64,6 +64,7 @@ set(CHECKERS_SOURCES
     src/MemoryManager.cpp
     src/TensorResource.cpp
     src/TensorAnalyzer.cpp
+    src/ANSCompressor.cpp
     runtime/Utils.cpp
 )
  
@@ -74,6 +75,7 @@ set_source_files_properties(
     src/MemoryManager.cpp
     src/TensorResource.cpp
     src/TensorAnalyzer.cpp
+    src/ANSCompressor.cpp
     runtime/Utils.cpp
     PROPERTIES LANGUAGE ${DEVICE_LANG}
 )

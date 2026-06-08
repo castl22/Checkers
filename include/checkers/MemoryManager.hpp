@@ -84,6 +84,19 @@ struct BufferPlan {
 };
 
 // ------------------------------------------------------------------ //
+//  ClusterInfo
+//  Single source of truth for tensor cluster assignments.
+//  Populated by TensorAnalyzer::build_knn_clusters() and consumed by
+//  ANSCompressor::compress_and_save_all().
+// ------------------------------------------------------------------ //
+struct ClusterInfo {
+    // tensor name → cluster_id (−1 = singleton, ≥0 = cluster member)
+    std::unordered_map<std::string, int> tensor_to_cluster;
+    // cluster_id → name of the anchor (first/representative) tensor
+    std::unordered_map<int, std::string> cluster_anchor;
+};
+
+// ------------------------------------------------------------------ //
 //  MemoryManager
 // ------------------------------------------------------------------ //
 class MemoryManager {
@@ -162,6 +175,10 @@ public:
     std::vector<Fingerprint>& get_fingerprints_mut() {
         return fingerprint_stage_;
     }
+
+    // ---- Cluster assignments (written by TensorAnalyzer, read by ANSCompressor) ----
+    void set_cluster_info(ClusterInfo ci) { cluster_info_ = std::move(ci); }
+    const ClusterInfo& get_cluster_info() const { return cluster_info_; }
 
 private:
 
@@ -245,6 +262,7 @@ private:
     std::vector<Fingerprint> fingerprint_stage_;
     Fingerprint* d_fingerprint_buffer_ = nullptr;
     size_t fingerprint_capacity_ = 0;
+    ClusterInfo cluster_info_;
 };
 
 } // namespace checkers

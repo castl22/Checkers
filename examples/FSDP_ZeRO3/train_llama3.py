@@ -164,7 +164,7 @@ class InstructionDataset(Dataset):
 def main():
     model_id = "meta-llama/Meta-Llama-3-8B"
     # Updated output path
-    output_dir = "/p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS"
+    output_dir = "/p/lustre5/kogiou1/llama-3-8b/8_GPUs/instruction/DS/step_1_ANS"
     os.makedirs(output_dir, exist_ok=True)
 
     parser = argparse.ArgumentParser(description="DeepSpeed Llama 3 Instruction Fine-tuning")
@@ -261,7 +261,8 @@ def main():
 
             checkpoint_state = {"epoch": epoch, "global_step": int(model_engine.global_steps)}
             rank_log(model_engine, "ENTER save_checkpoint")
-            model_engine.save_checkpoint(output_dir, tag="step_1_checkpoint", client_state=checkpoint_state)
+            checkers_py.compress_and_save(output_dir)
+            # model_engine.save_checkpoint(output_dir, tag="step_1_checkpoint", client_state=checkpoint_state)
             rank_log(model_engine, "EXIT save_checkpoint")
 
             sync_gpu_and_report(model_engine, "post_save_checkpoint")

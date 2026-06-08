@@ -870,38 +870,39 @@ const std::string& MemoryManager::get_name_from_index(size_t i) const {
 // ------------------------------------------------------------------ //
 void MemoryManager::report_memory_usage() const {
     std::shared_lock lock(registry_mutex_);
- 
-    std::cout << "========== MemoryManager Report ==========\n";
-    std::cout << "  Tensors tracked : " << registry_.size() << "\n";
-    std::cout << "  Active Batches  : " << active_slabs_.size() << "\n";
- 
+
     size_t total_tensor = 0, total_buf = 0;
     for (size_t i = 0; i < ordered_names_.size(); ++i) {
         const auto& name = ordered_names_[i];
         auto it = registry_.find(name);
         if (it == registry_.end()) continue;
- 
+
         const TensorMetadata& meta = it->second->get_meta();
-        const char* cty = meta.contiguity == Contiguity::Contiguous
-                          ? "contiguous"
-                          : meta.contiguity == Contiguity::NonContiguous
-                            ? "non-contiguous" : "scalar";
- 
-        std::cout << "  [" << name << "]\n"
-                  << "      elements  : " << meta.num_elements << "\n"
-                  << "      bytes     : " << meta.byte_size << "\n"
-                  << "      layout    : " << cty << "\n";
- 
-        if (i < buffer_plans_.size()) {
-            std::cout << "      buf(hist) : " << buffer_plans_[i].histogram_bytes << " B\n"
-                      << "      buf(moms) : " << buffer_plans_[i].moments_bytes << " B\n"
-                      << "      buf(mm)   : " << buffer_plans_[i].minmax_bytes << " B\n"
-                      << "      buf(total): " << buffer_plans_[i].total_bytes << " B\n";
-            total_buf += buffer_plans_[i].total_bytes;
-        }
         total_tensor += meta.byte_size;
+
+        if (i < buffer_plans_.size()) {
+            total_buf += buffer_plans_[i].total_bytes;
+
+            // Detailed per-tensor info goes to the rank log, not stdout.
+            if (logger_) {
+                const char* cty = meta.contiguity == Contiguity::Contiguous
+                                  ? "contiguous"
+                                  : meta.contiguity == Contiguity::NonContiguous
+                                    ? "non-contiguous" : "scalar";
+                logger_->log_message(
+                    "[mem] [" + name + "]"
+                    " elements=" + std::to_string(meta.num_elements) +
+                    " bytes=" + std::to_string(meta.byte_size) +
+                    " layout=" + cty +
+                    " buf_hist=" + std::to_string(buffer_plans_[i].histogram_bytes) +
+                    " buf_moms=" + std::to_string(buffer_plans_[i].moments_bytes) +
+                    " buf_mm=" + std::to_string(buffer_plans_[i].minmax_bytes) +
+                    " buf_total=" + std::to_string(buffer_plans_[i].total_bytes));
+            }
+        }
     }
- 
+
+    // Only the summary goes to stdout (one clean line per rank).
     std::cout << "------------------------------------------\n"
               << "  Total tensor data : " << total_tensor << " B ("
               << (total_tensor >> 20) << " MiB)\n"

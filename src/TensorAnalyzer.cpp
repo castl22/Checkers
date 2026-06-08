@@ -480,6 +480,10 @@ void TensorAnalyzer::build_knn_clusters(
 
     size_t grand_total = 0, grand_clustered = 0, grand_singleton = 0;
 
+    // ClusterInfo built alongside logging; stored in MemoryManager at the end.
+    ClusterInfo ci;
+    int next_cluster_id = 0;
+
     // ---- 3. Per-category clustering ----------------------------------------
     for (const auto& [cat, indices] : by_cat) {
         const int n = static_cast<int>(indices.size());
@@ -559,14 +563,25 @@ void TensorAnalyzer::build_knn_clusters(
             " singletons=" + std::to_string(cat_singleton) +
             " threshold="  + std::to_string(threshold));
 
-        // Log each multi-member cluster with names and member count
+        // Log each multi-member cluster with names and member count;
+        // simultaneously populate ClusterInfo.
         for (const auto& [root, members] : clusters) {
-            if (static_cast<int>(members.size()) < 2) continue;
-            std::string msg =
-                "[CLUSTER][" + cat + "][size=" + std::to_string(members.size()) + "]";
-            for (int local : members)
-                msg += "\n  " + mgr.get_name_from_index(indices[local]);
-            m_logger->log_message(msg);
+            if (static_cast<int>(members.size()) >= 2) {
+                std::string msg =
+                    "[CLUSTER][" + cat + "][size=" + std::to_string(members.size()) + "]";
+                const std::string anchor = mgr.get_name_from_index(indices[members[0]]);
+                ci.cluster_anchor[next_cluster_id] = anchor;
+                for (int local : members) {
+                    const std::string& tname = mgr.get_name_from_index(indices[local]);
+                    ci.tensor_to_cluster[tname] = next_cluster_id;
+                    msg += "\n  " + tname;
+                }
+                m_logger->log_message(msg);
+                ++next_cluster_id;
+            } else {
+                // Singleton
+                ci.tensor_to_cluster[mgr.get_name_from_index(indices[members[0]])] = -1;
+            }
         }
     }
 
@@ -575,7 +590,11 @@ void TensorAnalyzer::build_knn_clusters(
         "[CLUSTER][totals]"
         " total="      + std::to_string(grand_total) +
         " clustered="  + std::to_string(grand_clustered) +
-        " singletons=" + std::to_string(grand_singleton));
+        " singletons=" + std::to_string(grand_singleton) +
+        " clusters="   + std::to_string(next_cluster_id));
+
+    // Store ClusterInfo as the single source of truth for the compression stage.
+    MemoryManager::instance().set_cluster_info(std::move(ci));
 }
 
 } // namespace checkers
