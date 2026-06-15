@@ -1,0 +1,3492 @@
+================================================================================
+STREAM: exp_avg
+Tensor: model.embed_tokens.weight
+Elements: 525,336,576
+Tensor Bytes: 2,101,346,304
+Unique Values: 118,414,751
+Unique Ratio: 0.225407
+Entropy: 24.6866 bits/symbol
+Estimated Compressed Bytes: 1,621,094,204
+Histogram Bytes: 473,659,068
+Histogram/Tensor Ratio: 0.2254
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,392,716
+Unique Ratio: 0.917477
+Entropy: 23.8304 bits/symbol
+Estimated Compressed Bytes: 49,976,000
+Histogram Bytes: 61,570,928
+Histogram/Tensor Ratio: 0.9175
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,075,083
+Unique Ratio: 0.971575
+Entropy: 21.9426 bits/symbol
+Estimated Compressed Bytes: 11,504,261
+Histogram Bytes: 16,300,396
+Histogram/Tensor Ratio: 0.9716
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,075,456
+Unique Ratio: 0.971664
+Entropy: 21.9428 bits/symbol
+Estimated Compressed Bytes: 11,504,348
+Histogram Bytes: 16,301,888
+Histogram/Tensor Ratio: 0.9717
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,378,196
+Unique Ratio: 0.916612
+Entropy: 23.8286 bits/symbol
+Estimated Compressed Bytes: 49,972,133
+Histogram Bytes: 61,512,848
+Histogram/Tensor Ratio: 0.9166
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,273,457
+Unique Ratio: 0.719913
+Entropy: 25.1845 bits/symbol
+Estimated Compressed Bytes: 184,855,384
+Histogram Bytes: 169,093,892
+Histogram/Tensor Ratio: 0.7199
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,116,228
+Unique Ratio: 0.717235
+Entropy: 25.1779 bits/symbol
+Estimated Compressed Bytes: 184,806,805
+Histogram Bytes: 168,464,976
+Histogram/Tensor Ratio: 0.7172
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,813,731
+Unique Ratio: 0.729113
+Entropy: 25.2065 bits/symbol
+Estimated Compressed Bytes: 185,016,160
+Histogram Bytes: 171,254,988
+Histogram/Tensor Ratio: 0.7291
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.0.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,147,788
+Unique Ratio: 0.902879
+Entropy: 23.7993 bits/symbol
+Estimated Compressed Bytes: 49,910,697
+Histogram Bytes: 60,591,216
+Histogram/Tensor Ratio: 0.9029
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,071,937
+Unique Ratio: 0.970825
+Entropy: 21.9411 bits/symbol
+Estimated Compressed Bytes: 11,503,458
+Histogram Bytes: 16,287,812
+Histogram/Tensor Ratio: 0.9708
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,072,087
+Unique Ratio: 0.970861
+Entropy: 21.9412 bits/symbol
+Estimated Compressed Bytes: 11,503,487
+Histogram Bytes: 16,288,412
+Histogram/Tensor Ratio: 0.9709
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,116,035
+Unique Ratio: 0.900986
+Entropy: 23.7952 bits/symbol
+Estimated Compressed Bytes: 49,902,148
+Histogram Bytes: 60,464,204
+Histogram/Tensor Ratio: 0.9010
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,641,464
+Unique Ratio: 0.726180
+Entropy: 25.1997 bits/symbol
+Estimated Compressed Bytes: 184,966,257
+Histogram Bytes: 170,565,920
+Histogram/Tensor Ratio: 0.7262
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,794,130
+Unique Ratio: 0.728780
+Entropy: 25.2059 bits/symbol
+Estimated Compressed Bytes: 185,012,289
+Histogram Bytes: 171,176,584
+Histogram/Tensor Ratio: 0.7288
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 49,132,400
+Unique Ratio: 0.836720
+Entropy: 25.4587 bits/symbol
+Estimated Compressed Bytes: 186,867,856
+Histogram Bytes: 196,529,664
+Histogram/Tensor Ratio: 0.8367
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.1.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 16,158,457
+Unique Ratio: 0.963119
+Entropy: 23.9254 bits/symbol
+Estimated Compressed Bytes: 50,175,150
+Histogram Bytes: 64,633,892
+Histogram/Tensor Ratio: 0.9631
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,151,500
+Unique Ratio: 0.989795
+Entropy: 21.9795 bits/symbol
+Estimated Compressed Bytes: 11,523,601
+Histogram Bytes: 16,606,064
+Histogram/Tensor Ratio: 0.9898
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,152,137
+Unique Ratio: 0.989947
+Entropy: 21.9798 bits/symbol
+Estimated Compressed Bytes: 11,523,762
+Histogram Bytes: 16,608,612
+Histogram/Tensor Ratio: 0.9900
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 16,093,861
+Unique Ratio: 0.959269
+Entropy: 23.9174 bits/symbol
+Estimated Compressed Bytes: 50,158,486
+Histogram Bytes: 64,375,508
+Histogram/Tensor Ratio: 0.9593
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 6,814,563
+Unique Ratio: 0.116051
+Entropy: 4.7579 bits/symbol
+Estimated Compressed Bytes: 34,923,451
+Histogram Bytes: 27,258,316
+Histogram/Tensor Ratio: 0.1161
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 40,252,360
+Unique Ratio: 0.685494
+Entropy: 22.9498 bits/symbol
+Estimated Compressed Bytes: 168,452,590
+Histogram Bytes: 161,009,504
+Histogram/Tensor Ratio: 0.6855
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,178,331
+Unique Ratio: 0.718293
+Entropy: 25.1800 bits/symbol
+Estimated Compressed Bytes: 184,821,999
+Histogram Bytes: 168,713,388
+Histogram/Tensor Ratio: 0.7183
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.2.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,226,467
+Unique Ratio: 0.907568
+Entropy: 23.8093 bits/symbol
+Estimated Compressed Bytes: 49,931,665
+Histogram Bytes: 60,905,932
+Histogram/Tensor Ratio: 0.9076
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,230
+Unique Ratio: 0.971372
+Entropy: 21.9422 bits/symbol
+Estimated Compressed Bytes: 11,504,033
+Histogram Bytes: 16,296,984
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,418
+Unique Ratio: 0.971417
+Entropy: 21.9423 bits/symbol
+Estimated Compressed Bytes: 11,504,088
+Histogram Bytes: 16,297,736
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,237,294
+Unique Ratio: 0.908213
+Entropy: 23.8107 bits/symbol
+Estimated Compressed Bytes: 49,934,593
+Histogram Bytes: 60,949,240
+Histogram/Tensor Ratio: 0.9082
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,405,965
+Unique Ratio: 0.722169
+Entropy: 25.1905 bits/symbol
+Estimated Compressed Bytes: 184,898,941
+Histogram Bytes: 169,623,924
+Histogram/Tensor Ratio: 0.7222
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,979,213
+Unique Ratio: 0.731932
+Entropy: 25.2147 bits/symbol
+Estimated Compressed Bytes: 185,076,475
+Histogram Bytes: 171,916,916
+Histogram/Tensor Ratio: 0.7319
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,697,197
+Unique Ratio: 0.727129
+Entropy: 25.2028 bits/symbol
+Estimated Compressed Bytes: 184,989,051
+Histogram Bytes: 170,788,852
+Histogram/Tensor Ratio: 0.7271
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.3.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,244,037
+Unique Ratio: 0.908615
+Entropy: 23.8116 bits/symbol
+Estimated Compressed Bytes: 49,936,440
+Histogram Bytes: 60,976,212
+Histogram/Tensor Ratio: 0.9086
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,479
+Unique Ratio: 0.971431
+Entropy: 21.9423 bits/symbol
+Estimated Compressed Bytes: 11,504,108
+Histogram Bytes: 16,297,980
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,564
+Unique Ratio: 0.971452
+Entropy: 21.9424 bits/symbol
+Estimated Compressed Bytes: 11,504,133
+Histogram Bytes: 16,298,320
+Histogram/Tensor Ratio: 0.9715
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,289,271
+Unique Ratio: 0.911312
+Entropy: 23.8173 bits/symbol
+Estimated Compressed Bytes: 49,948,460
+Histogram Bytes: 61,157,148
+Histogram/Tensor Ratio: 0.9113
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,707,198
+Unique Ratio: 0.727299
+Entropy: 25.2030 bits/symbol
+Estimated Compressed Bytes: 184,991,020
+Histogram Bytes: 170,828,856
+Histogram/Tensor Ratio: 0.7273
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,682,888
+Unique Ratio: 0.726885
+Entropy: 25.2022 bits/symbol
+Estimated Compressed Bytes: 184,984,615
+Histogram Bytes: 170,731,616
+Histogram/Tensor Ratio: 0.7269
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,523,733
+Unique Ratio: 0.724175
+Entropy: 25.1953 bits/symbol
+Estimated Compressed Bytes: 184,934,395
+Histogram Bytes: 170,094,996
+Histogram/Tensor Ratio: 0.7242
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.4.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,152,428
+Unique Ratio: 0.903155
+Entropy: 23.7998 bits/symbol
+Estimated Compressed Bytes: 49,911,886
+Histogram Bytes: 60,609,776
+Histogram/Tensor Ratio: 0.9032
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,072,689
+Unique Ratio: 0.971005
+Entropy: 21.9415 bits/symbol
+Estimated Compressed Bytes: 11,503,643
+Histogram Bytes: 16,290,820
+Histogram/Tensor Ratio: 0.9710
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,656
+Unique Ratio: 0.971235
+Entropy: 21.9419 bits/symbol
+Estimated Compressed Bytes: 11,503,899
+Histogram Bytes: 16,294,688
+Histogram/Tensor Ratio: 0.9712
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,156,430
+Unique Ratio: 0.903394
+Entropy: 23.8004 bits/symbol
+Estimated Compressed Bytes: 49,913,075
+Histogram Bytes: 60,625,784
+Histogram/Tensor Ratio: 0.9034
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,015,077
+Unique Ratio: 0.715512
+Entropy: 25.1733 bits/symbol
+Estimated Compressed Bytes: 184,772,722
+Histogram Bytes: 168,060,372
+Histogram/Tensor Ratio: 0.7155
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,353,995
+Unique Ratio: 0.721284
+Entropy: 25.1873 bits/symbol
+Estimated Compressed Bytes: 184,875,807
+Histogram Bytes: 169,416,044
+Histogram/Tensor Ratio: 0.7213
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,001,083
+Unique Ratio: 0.715274
+Entropy: 25.1724 bits/symbol
+Estimated Compressed Bytes: 184,766,234
+Histogram Bytes: 168,004,396
+Histogram/Tensor Ratio: 0.7153
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.5.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,095
+Unique Ratio: 0.999756
+Entropy: 11.9995 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,254
+Histogram/Tensor Ratio: 0.5038
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,124,123
+Unique Ratio: 0.901468
+Entropy: 23.7962 bits/symbol
+Estimated Compressed Bytes: 49,904,292
+Histogram Bytes: 60,496,556
+Histogram/Tensor Ratio: 0.9015
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,077,633
+Unique Ratio: 0.972183
+Entropy: 21.9439 bits/symbol
+Estimated Compressed Bytes: 11,504,903
+Histogram Bytes: 16,310,596
+Histogram/Tensor Ratio: 0.9722
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,079,553
+Unique Ratio: 0.972641
+Entropy: 21.9448 bits/symbol
+Estimated Compressed Bytes: 11,505,393
+Histogram Bytes: 16,318,276
+Histogram/Tensor Ratio: 0.9726
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,369,660
+Unique Ratio: 0.916103
+Entropy: 23.8274 bits/symbol
+Estimated Compressed Bytes: 49,969,769
+Histogram Bytes: 61,478,704
+Histogram/Tensor Ratio: 0.9161
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 43,346,063
+Unique Ratio: 0.738179
+Entropy: 25.2285 bits/symbol
+Estimated Compressed Bytes: 185,178,326
+Histogram Bytes: 173,384,316
+Histogram/Tensor Ratio: 0.7382
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 51,191,271
+Unique Ratio: 0.871782
+Entropy: 25.5394 bits/symbol
+Estimated Compressed Bytes: 187,460,262
+Histogram Bytes: 204,765,148
+Histogram/Tensor Ratio: 0.8718
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 15,864,258
+Unique Ratio: 0.270167
+Entropy: 8.2956 bits/symbol
+Estimated Compressed Bytes: 60,890,200
+Histogram Bytes: 63,457,096
+Histogram/Tensor Ratio: 0.2702
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 1
+Unique Ratio: 0.000244
+Entropy: -0.0000 bits/symbol
+Estimated Compressed Bytes: -0
+Histogram Bytes: 66
+Histogram/Tensor Ratio: 0.0040
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.6.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 1
+Unique Ratio: 0.000244
+Entropy: -0.0000 bits/symbol
+Estimated Compressed Bytes: -0
+Histogram Bytes: 66
+Histogram/Tensor Ratio: 0.0040
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 840,163
+Unique Ratio: 0.050078
+Entropy: 1.9838 bits/symbol
+Estimated Compressed Bytes: 4,160,413
+Histogram Bytes: 3,360,716
+Histogram/Tensor Ratio: 0.0501
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 177,609
+Unique Ratio: 0.042345
+Entropy: 1.4750 bits/symbol
+Estimated Compressed Bytes: 773,340
+Histogram Bytes: 710,500
+Histogram/Tensor Ratio: 0.0423
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,022,474
+Unique Ratio: 0.959033
+Entropy: 21.4446 bits/symbol
+Estimated Compressed Bytes: 11,243,135
+Histogram Bytes: 16,089,960
+Histogram/Tensor Ratio: 0.9590
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,057,290
+Unique Ratio: 0.897484
+Entropy: 23.7877 bits/symbol
+Estimated Compressed Bytes: 49,886,344
+Histogram Bytes: 60,229,224
+Histogram/Tensor Ratio: 0.8975
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,635,076
+Unique Ratio: 0.726071
+Entropy: 25.1986 bits/symbol
+Estimated Compressed Bytes: 184,958,554
+Histogram Bytes: 170,540,368
+Histogram/Tensor Ratio: 0.7261
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,633,154
+Unique Ratio: 0.726038
+Entropy: 25.1997 bits/symbol
+Estimated Compressed Bytes: 184,966,790
+Histogram Bytes: 170,532,680
+Histogram/Tensor Ratio: 0.7260
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,711,821
+Unique Ratio: 0.727378
+Entropy: 25.2033 bits/symbol
+Estimated Compressed Bytes: 184,992,751
+Histogram Bytes: 170,847,348
+Histogram/Tensor Ratio: 0.7274
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.7.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,093,442
+Unique Ratio: 0.899639
+Entropy: 23.7925 bits/symbol
+Estimated Compressed Bytes: 49,896,396
+Histogram Bytes: 60,373,832
+Histogram/Tensor Ratio: 0.8996
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,421
+Unique Ratio: 0.971179
+Entropy: 21.9418 bits/symbol
+Estimated Compressed Bytes: 11,503,837
+Histogram Bytes: 16,293,748
+Histogram/Tensor Ratio: 0.9712
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,107,010
+Unique Ratio: 0.979187
+Entropy: 21.9581 bits/symbol
+Estimated Compressed Bytes: 11,512,371
+Histogram Bytes: 16,428,104
+Histogram/Tensor Ratio: 0.9792
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,163,067
+Unique Ratio: 0.903789
+Entropy: 23.8013 bits/symbol
+Estimated Compressed Bytes: 49,914,918
+Histogram Bytes: 60,652,332
+Histogram/Tensor Ratio: 0.9038
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,557,409
+Unique Ratio: 0.724748
+Entropy: 25.1968 bits/symbol
+Estimated Compressed Bytes: 184,945,024
+Histogram Bytes: 170,229,700
+Histogram/Tensor Ratio: 0.7247
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,469,442
+Unique Ratio: 0.723250
+Entropy: 25.1927 bits/symbol
+Estimated Compressed Bytes: 184,915,586
+Histogram Bytes: 169,877,832
+Histogram/Tensor Ratio: 0.7233
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,905,139
+Unique Ratio: 0.730670
+Entropy: 25.2112 bits/symbol
+Estimated Compressed Bytes: 185,051,368
+Histogram Bytes: 171,620,620
+Histogram/Tensor Ratio: 0.7307
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,095
+Unique Ratio: 0.999756
+Entropy: 11.9995 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,254
+Histogram/Tensor Ratio: 0.5038
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.8.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,095
+Unique Ratio: 0.999756
+Entropy: 11.9995 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,254
+Histogram/Tensor Ratio: 0.5038
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,153,009
+Unique Ratio: 0.903190
+Entropy: 23.8001 bits/symbol
+Estimated Compressed Bytes: 49,912,374
+Histogram Bytes: 60,612,100
+Histogram/Tensor Ratio: 0.9032
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,347
+Unique Ratio: 0.971400
+Entropy: 21.9423 bits/symbol
+Estimated Compressed Bytes: 11,504,074
+Histogram Bytes: 16,297,452
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,118,497
+Unique Ratio: 0.981926
+Entropy: 21.9637 bits/symbol
+Estimated Compressed Bytes: 11,515,278
+Histogram Bytes: 16,474,052
+Histogram/Tensor Ratio: 0.9819
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,166,243
+Unique Ratio: 0.903979
+Entropy: 23.8017 bits/symbol
+Estimated Compressed Bytes: 49,915,796
+Histogram Bytes: 60,665,036
+Histogram/Tensor Ratio: 0.9040
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,547,911
+Unique Ratio: 0.724587
+Entropy: 25.1965 bits/symbol
+Estimated Compressed Bytes: 184,943,007
+Histogram Bytes: 170,191,708
+Histogram/Tensor Ratio: 0.7246
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,260,016
+Unique Ratio: 0.719684
+Entropy: 25.1840 bits/symbol
+Estimated Compressed Bytes: 184,851,468
+Histogram Bytes: 169,040,128
+Histogram/Tensor Ratio: 0.7197
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,644,017
+Unique Ratio: 0.726223
+Entropy: 25.1999 bits/symbol
+Estimated Compressed Bytes: 184,968,168
+Histogram Bytes: 170,576,132
+Histogram/Tensor Ratio: 0.7262
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.9.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,013,233
+Unique Ratio: 0.894858
+Entropy: 23.7821 bits/symbol
+Estimated Compressed Bytes: 49,874,715
+Histogram Bytes: 60,052,996
+Histogram/Tensor Ratio: 0.8949
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,822
+Unique Ratio: 0.971275
+Entropy: 21.9420 bits/symbol
+Estimated Compressed Bytes: 11,503,930
+Histogram Bytes: 16,295,352
+Histogram/Tensor Ratio: 0.9713
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,096,616
+Unique Ratio: 0.976709
+Entropy: 21.9530 bits/symbol
+Estimated Compressed Bytes: 11,509,720
+Histogram Bytes: 16,386,528
+Histogram/Tensor Ratio: 0.9767
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,039,644
+Unique Ratio: 0.896433
+Entropy: 23.7854 bits/symbol
+Estimated Compressed Bytes: 49,881,654
+Histogram Bytes: 60,158,640
+Histogram/Tensor Ratio: 0.8964
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,094,983
+Unique Ratio: 0.716873
+Entropy: 25.1767 bits/symbol
+Estimated Compressed Bytes: 184,797,785
+Histogram Bytes: 168,379,996
+Histogram/Tensor Ratio: 0.7169
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,013,601
+Unique Ratio: 0.715487
+Entropy: 25.1727 bits/symbol
+Estimated Compressed Bytes: 184,768,288
+Histogram Bytes: 168,054,468
+Histogram/Tensor Ratio: 0.7155
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,764,617
+Unique Ratio: 0.728277
+Entropy: 25.2044 bits/symbol
+Estimated Compressed Bytes: 185,000,988
+Histogram Bytes: 171,058,532
+Histogram/Tensor Ratio: 0.7283
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.10.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,319,100
+Unique Ratio: 0.913090
+Entropy: 23.8208 bits/symbol
+Estimated Compressed Bytes: 49,955,904
+Histogram Bytes: 61,276,464
+Histogram/Tensor Ratio: 0.9131
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,104,288
+Unique Ratio: 0.978539
+Entropy: 21.9568 bits/symbol
+Estimated Compressed Bytes: 11,511,676
+Histogram Bytes: 16,417,216
+Histogram/Tensor Ratio: 0.9785
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,139,090
+Unique Ratio: 0.986836
+Entropy: 21.9735 bits/symbol
+Estimated Compressed Bytes: 11,520,468
+Histogram Bytes: 16,556,424
+Histogram/Tensor Ratio: 0.9868
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,863,201
+Unique Ratio: 0.945520
+Entropy: 23.8890 bits/symbol
+Estimated Compressed Bytes: 50,098,868
+Histogram Bytes: 63,452,868
+Histogram/Tensor Ratio: 0.9455
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 39,166,652
+Unique Ratio: 0.667004
+Entropy: 20.3865 bits/symbol
+Estimated Compressed Bytes: 149,637,826
+Histogram Bytes: 156,666,672
+Histogram/Tensor Ratio: 0.6670
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 8,279,883
+Unique Ratio: 0.141006
+Entropy: 4.4642 bits/symbol
+Estimated Compressed Bytes: 32,767,587
+Histogram Bytes: 33,119,596
+Histogram/Tensor Ratio: 0.1410
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,823,955
+Unique Ratio: 0.729288
+Entropy: 25.2057 bits/symbol
+Estimated Compressed Bytes: 185,010,308
+Histogram Bytes: 171,295,884
+Histogram/Tensor Ratio: 0.7293
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.11.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,023,803
+Unique Ratio: 0.895488
+Entropy: 23.7834 bits/symbol
+Estimated Compressed Bytes: 49,877,427
+Histogram Bytes: 60,095,276
+Histogram/Tensor Ratio: 0.8955
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,120,815
+Unique Ratio: 0.982479
+Entropy: 21.9648 bits/symbol
+Estimated Compressed Bytes: 11,515,862
+Histogram Bytes: 16,483,324
+Histogram/Tensor Ratio: 0.9825
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,081,695
+Unique Ratio: 0.973152
+Entropy: 21.9458 bits/symbol
+Estimated Compressed Bytes: 11,505,931
+Histogram Bytes: 16,326,844
+Histogram/Tensor Ratio: 0.9732
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,031,322
+Unique Ratio: 0.895937
+Entropy: 23.7844 bits/symbol
+Estimated Compressed Bytes: 49,879,575
+Histogram Bytes: 60,125,352
+Histogram/Tensor Ratio: 0.8959
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,761,605
+Unique Ratio: 0.728226
+Entropy: 25.2055 bits/symbol
+Estimated Compressed Bytes: 185,008,810
+Histogram Bytes: 171,046,484
+Histogram/Tensor Ratio: 0.7282
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,809,408
+Unique Ratio: 0.729040
+Entropy: 25.2075 bits/symbol
+Estimated Compressed Bytes: 185,023,717
+Histogram Bytes: 171,237,696
+Histogram/Tensor Ratio: 0.7290
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,866,814
+Unique Ratio: 0.730017
+Entropy: 25.2099 bits/symbol
+Estimated Compressed Bytes: 185,041,750
+Histogram Bytes: 171,467,320
+Histogram/Tensor Ratio: 0.7300
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.12.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,033,116
+Unique Ratio: 0.896044
+Entropy: 23.7847 bits/symbol
+Estimated Compressed Bytes: 49,880,152
+Histogram Bytes: 60,132,528
+Histogram/Tensor Ratio: 0.8960
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,102,224
+Unique Ratio: 0.978046
+Entropy: 21.9558 bits/symbol
+Estimated Compressed Bytes: 11,511,159
+Histogram Bytes: 16,408,960
+Histogram/Tensor Ratio: 0.9781
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,086,978
+Unique Ratio: 0.974411
+Entropy: 21.9484 bits/symbol
+Estimated Compressed Bytes: 11,507,289
+Histogram Bytes: 16,347,976
+Histogram/Tensor Ratio: 0.9744
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,041,920
+Unique Ratio: 0.896568
+Entropy: 23.7859 bits/symbol
+Estimated Compressed Bytes: 49,882,604
+Histogram Bytes: 60,167,744
+Histogram/Tensor Ratio: 0.8966
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,856,834
+Unique Ratio: 0.729848
+Entropy: 25.2092 bits/symbol
+Estimated Compressed Bytes: 185,036,502
+Histogram Bytes: 171,427,400
+Histogram/Tensor Ratio: 0.7298
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,901,703
+Unique Ratio: 0.730612
+Entropy: 25.2112 bits/symbol
+Estimated Compressed Bytes: 185,050,689
+Histogram Bytes: 171,606,876
+Histogram/Tensor Ratio: 0.7306
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 43,149,628
+Unique Ratio: 0.734834
+Entropy: 25.2217 bits/symbol
+Estimated Compressed Bytes: 185,127,880
+Histogram Bytes: 172,598,576
+Histogram/Tensor Ratio: 0.7348
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.13.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,054,867
+Unique Ratio: 0.897340
+Entropy: 23.7874 bits/symbol
+Estimated Compressed Bytes: 49,885,882
+Histogram Bytes: 60,219,532
+Histogram/Tensor Ratio: 0.8973
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,102,050
+Unique Ratio: 0.978005
+Entropy: 21.9557 bits/symbol
+Estimated Compressed Bytes: 11,511,115
+Histogram Bytes: 16,408,264
+Histogram/Tensor Ratio: 0.9780
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,080,725
+Unique Ratio: 0.972921
+Entropy: 21.9454 bits/symbol
+Estimated Compressed Bytes: 11,505,697
+Histogram Bytes: 16,322,964
+Histogram/Tensor Ratio: 0.9729
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,034,697
+Unique Ratio: 0.896138
+Entropy: 23.7848 bits/symbol
+Estimated Compressed Bytes: 49,880,410
+Histogram Bytes: 60,138,852
+Histogram/Tensor Ratio: 0.8961
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,438,603
+Unique Ratio: 0.722725
+Entropy: 25.1912 bits/symbol
+Estimated Compressed Bytes: 184,903,984
+Histogram Bytes: 169,754,476
+Histogram/Tensor Ratio: 0.7227
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 41,999,962
+Unique Ratio: 0.715255
+Entropy: 25.1723 bits/symbol
+Estimated Compressed Bytes: 184,765,839
+Histogram Bytes: 167,999,912
+Histogram/Tensor Ratio: 0.7153
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 41,826,080
+Unique Ratio: 0.712294
+Entropy: 25.1652 bits/symbol
+Estimated Compressed Bytes: 184,713,549
+Histogram Bytes: 167,304,384
+Histogram/Tensor Ratio: 0.7123
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.14.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,007,910
+Unique Ratio: 0.894541
+Entropy: 23.7814 bits/symbol
+Estimated Compressed Bytes: 49,873,143
+Histogram Bytes: 60,031,704
+Histogram/Tensor Ratio: 0.8945
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,101,850
+Unique Ratio: 0.977957
+Entropy: 21.9556 bits/symbol
+Estimated Compressed Bytes: 11,511,066
+Histogram Bytes: 16,407,464
+Histogram/Tensor Ratio: 0.9780
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,080,089
+Unique Ratio: 0.972769
+Entropy: 21.9451 bits/symbol
+Estimated Compressed Bytes: 11,505,529
+Histogram Bytes: 16,320,420
+Histogram/Tensor Ratio: 0.9728
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,019,624
+Unique Ratio: 0.895239
+Entropy: 23.7829 bits/symbol
+Estimated Compressed Bytes: 49,876,332
+Histogram Bytes: 60,078,560
+Histogram/Tensor Ratio: 0.8952
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,939,733
+Unique Ratio: 0.731259
+Entropy: 25.2115 bits/symbol
+Estimated Compressed Bytes: 185,053,065
+Histogram Bytes: 171,758,996
+Histogram/Tensor Ratio: 0.7313
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 46,115,608
+Unique Ratio: 0.785344
+Entropy: 25.3388 bits/symbol
+Estimated Compressed Bytes: 185,987,314
+Histogram Bytes: 184,462,496
+Histogram/Tensor Ratio: 0.7853
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 47,880,319
+Unique Ratio: 0.815397
+Entropy: 25.4121 bits/symbol
+Estimated Compressed Bytes: 186,525,418
+Histogram Bytes: 191,521,340
+Histogram/Tensor Ratio: 0.8154
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.15.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 494,963
+Unique Ratio: 0.029502
+Entropy: 1.0820 bits/symbol
+Estimated Compressed Bytes: 2,269,090
+Histogram Bytes: 1,979,916
+Histogram/Tensor Ratio: 0.0295
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 125,098
+Unique Ratio: 0.029826
+Entropy: 1.0930 bits/symbol
+Estimated Compressed Bytes: 573,048
+Histogram Bytes: 500,456
+Histogram/Tensor Ratio: 0.0298
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 121,012
+Unique Ratio: 0.028852
+Entropy: 1.0021 bits/symbol
+Estimated Compressed Bytes: 525,377
+Histogram Bytes: 484,112
+Histogram/Tensor Ratio: 0.0289
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 389,780
+Unique Ratio: 0.023233
+Entropy: 0.9467 bits/symbol
+Estimated Compressed Bytes: 1,985,296
+Histogram Bytes: 1,559,184
+Histogram/Tensor Ratio: 0.0232
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 30,183,623
+Unique Ratio: 0.514024
+Entropy: 16.1680 bits/symbol
+Estimated Compressed Bytes: 118,673,570
+Histogram Bytes: 120,734,556
+Histogram/Tensor Ratio: 0.5140
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,163,787
+Unique Ratio: 0.718045
+Entropy: 25.1791 bits/symbol
+Estimated Compressed Bytes: 184,815,229
+Histogram Bytes: 168,655,212
+Histogram/Tensor Ratio: 0.7180
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,501,003
+Unique Ratio: 0.723788
+Entropy: 25.1939 bits/symbol
+Estimated Compressed Bytes: 184,923,786
+Histogram Bytes: 170,004,076
+Histogram/Tensor Ratio: 0.7238
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.16.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,180,752
+Unique Ratio: 0.904843
+Entropy: 23.8035 bits/symbol
+Estimated Compressed Bytes: 49,919,520
+Histogram Bytes: 60,723,072
+Histogram/Tensor Ratio: 0.9048
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,080,428
+Unique Ratio: 0.972850
+Entropy: 21.9452 bits/symbol
+Estimated Compressed Bytes: 11,505,614
+Histogram Bytes: 16,321,776
+Histogram/Tensor Ratio: 0.9729
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,082,363
+Unique Ratio: 0.973311
+Entropy: 21.9462 bits/symbol
+Estimated Compressed Bytes: 11,506,114
+Histogram Bytes: 16,329,516
+Histogram/Tensor Ratio: 0.9733
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,152,600
+Unique Ratio: 0.903165
+Entropy: 23.8000 bits/symbol
+Estimated Compressed Bytes: 49,912,140
+Histogram Bytes: 60,610,464
+Histogram/Tensor Ratio: 0.9032
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 43,052,257
+Unique Ratio: 0.733176
+Entropy: 25.2177 bits/symbol
+Estimated Compressed Bytes: 185,098,560
+Histogram Bytes: 172,209,092
+Histogram/Tensor Ratio: 0.7332
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,681,096
+Unique Ratio: 0.726855
+Entropy: 25.2019 bits/symbol
+Estimated Compressed Bytes: 184,982,528
+Histogram Bytes: 170,724,448
+Histogram/Tensor Ratio: 0.7269
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,601,998
+Unique Ratio: 0.725508
+Entropy: 25.1985 bits/symbol
+Estimated Compressed Bytes: 184,957,728
+Histogram Bytes: 170,408,056
+Histogram/Tensor Ratio: 0.7255
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.17.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,201,586
+Unique Ratio: 0.906085
+Entropy: 23.8062 bits/symbol
+Estimated Compressed Bytes: 49,925,181
+Histogram Bytes: 60,806,408
+Histogram/Tensor Ratio: 0.9061
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,086,373
+Unique Ratio: 0.974267
+Entropy: 21.9481 bits/symbol
+Estimated Compressed Bytes: 11,507,135
+Histogram Bytes: 16,345,556
+Histogram/Tensor Ratio: 0.9743
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,087,404
+Unique Ratio: 0.974513
+Entropy: 21.9486 bits/symbol
+Estimated Compressed Bytes: 11,507,390
+Histogram Bytes: 16,349,680
+Histogram/Tensor Ratio: 0.9745
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,139,881
+Unique Ratio: 0.902407
+Entropy: 23.7983 bits/symbol
+Estimated Compressed Bytes: 49,908,702
+Histogram Bytes: 60,559,588
+Histogram/Tensor Ratio: 0.9024
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 43,032,972
+Unique Ratio: 0.732847
+Entropy: 25.2170 bits/symbol
+Estimated Compressed Bytes: 185,093,678
+Histogram Bytes: 172,131,952
+Histogram/Tensor Ratio: 0.7328
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,951,089
+Unique Ratio: 0.731453
+Entropy: 25.2129 bits/symbol
+Estimated Compressed Bytes: 185,063,478
+Histogram Bytes: 171,804,420
+Histogram/Tensor Ratio: 0.7315
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,846,755
+Unique Ratio: 0.729676
+Entropy: 25.2082 bits/symbol
+Estimated Compressed Bytes: 185,028,795
+Histogram Bytes: 171,387,084
+Histogram/Tensor Ratio: 0.7297
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.18.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,136,338
+Unique Ratio: 0.902196
+Entropy: 23.7978 bits/symbol
+Estimated Compressed Bytes: 49,907,709
+Histogram Bytes: 60,545,416
+Histogram/Tensor Ratio: 0.9022
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,939
+Unique Ratio: 0.971541
+Entropy: 21.9426 bits/symbol
+Estimated Compressed Bytes: 11,504,219
+Histogram Bytes: 16,299,820
+Histogram/Tensor Ratio: 0.9715
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,077,146
+Unique Ratio: 0.972067
+Entropy: 21.9436 bits/symbol
+Estimated Compressed Bytes: 11,504,789
+Histogram Bytes: 16,308,648
+Histogram/Tensor Ratio: 0.9721
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,142,882
+Unique Ratio: 0.902586
+Entropy: 23.7987 bits/symbol
+Estimated Compressed Bytes: 49,909,555
+Histogram Bytes: 60,571,592
+Histogram/Tensor Ratio: 0.9026
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,241,418
+Unique Ratio: 0.719367
+Entropy: 25.1831 bits/symbol
+Estimated Compressed Bytes: 184,844,529
+Histogram Bytes: 168,965,736
+Histogram/Tensor Ratio: 0.7194
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,364,195
+Unique Ratio: 0.721458
+Entropy: 25.1874 bits/symbol
+Estimated Compressed Bytes: 184,876,554
+Histogram Bytes: 169,456,844
+Histogram/Tensor Ratio: 0.7215
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,046,430
+Unique Ratio: 0.716046
+Entropy: 25.1742 bits/symbol
+Estimated Compressed Bytes: 184,779,372
+Histogram Bytes: 168,185,784
+Histogram/Tensor Ratio: 0.7160
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.19.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,212,759
+Unique Ratio: 0.906751
+Entropy: 23.8075 bits/symbol
+Estimated Compressed Bytes: 49,928,006
+Histogram Bytes: 60,851,100
+Histogram/Tensor Ratio: 0.9068
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,085,365
+Unique Ratio: 0.974027
+Entropy: 21.9476 bits/symbol
+Estimated Compressed Bytes: 11,506,868
+Histogram Bytes: 16,341,524
+Histogram/Tensor Ratio: 0.9740
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,086,509
+Unique Ratio: 0.974300
+Entropy: 21.9482 bits/symbol
+Estimated Compressed Bytes: 11,507,168
+Histogram Bytes: 16,346,100
+Histogram/Tensor Ratio: 0.9743
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,243,819
+Unique Ratio: 0.908602
+Entropy: 23.8114 bits/symbol
+Estimated Compressed Bytes: 49,936,144
+Histogram Bytes: 60,975,340
+Histogram/Tensor Ratio: 0.9086
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 51,038,861
+Unique Ratio: 0.869187
+Entropy: 25.5340 bits/symbol
+Estimated Compressed Bytes: 187,420,406
+Histogram Bytes: 204,155,508
+Histogram/Tensor Ratio: 0.8692
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 27,878,560
+Unique Ratio: 0.474769
+Entropy: 14.2883 bits/symbol
+Estimated Compressed Bytes: 104,876,228
+Histogram Bytes: 111,514,304
+Histogram/Tensor Ratio: 0.4748
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 19,622,345
+Unique Ratio: 0.334167
+Entropy: 10.1656 bits/symbol
+Estimated Compressed Bytes: 74,615,751
+Histogram Bytes: 78,489,444
+Histogram/Tensor Ratio: 0.3342
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.20.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,330,592
+Unique Ratio: 0.913774
+Entropy: 23.8224 bits/symbol
+Estimated Compressed Bytes: 49,959,146
+Histogram Bytes: 61,322,432
+Histogram/Tensor Ratio: 0.9138
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,761
+Unique Ratio: 0.971260
+Entropy: 21.9420 bits/symbol
+Estimated Compressed Bytes: 11,503,907
+Histogram Bytes: 16,295,108
+Histogram/Tensor Ratio: 0.9713
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,181
+Unique Ratio: 0.971360
+Entropy: 21.9422 bits/symbol
+Estimated Compressed Bytes: 11,504,023
+Histogram Bytes: 16,296,788
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,286,796
+Unique Ratio: 0.911164
+Entropy: 23.8168 bits/symbol
+Estimated Compressed Bytes: 49,947,501
+Histogram Bytes: 61,147,248
+Histogram/Tensor Ratio: 0.9112
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,794,497
+Unique Ratio: 0.728786
+Entropy: 25.2058 bits/symbol
+Estimated Compressed Bytes: 185,011,448
+Histogram Bytes: 171,178,052
+Histogram/Tensor Ratio: 0.7288
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,551,877
+Unique Ratio: 0.724654
+Entropy: 25.1966 bits/symbol
+Estimated Compressed Bytes: 184,943,732
+Histogram Bytes: 170,207,572
+Histogram/Tensor Ratio: 0.7247
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,821,033
+Unique Ratio: 0.729238
+Entropy: 25.2080 bits/symbol
+Estimated Compressed Bytes: 185,027,717
+Histogram Bytes: 171,284,196
+Histogram/Tensor Ratio: 0.7292
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,095
+Unique Ratio: 0.999756
+Entropy: 11.9995 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,254
+Histogram/Tensor Ratio: 0.5038
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.21.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,094
+Unique Ratio: 0.999512
+Entropy: 11.9990 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,252
+Histogram/Tensor Ratio: 0.5037
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,281,725
+Unique Ratio: 0.910862
+Entropy: 23.8164 bits/symbol
+Estimated Compressed Bytes: 49,946,563
+Histogram Bytes: 61,126,964
+Histogram/Tensor Ratio: 0.9109
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,083,841
+Unique Ratio: 0.973664
+Entropy: 21.9469 bits/symbol
+Estimated Compressed Bytes: 11,506,489
+Histogram Bytes: 16,335,428
+Histogram/Tensor Ratio: 0.9737
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,479
+Unique Ratio: 0.971431
+Entropy: 21.9423 bits/symbol
+Estimated Compressed Bytes: 11,504,105
+Histogram Bytes: 16,297,980
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,247,560
+Unique Ratio: 0.908825
+Entropy: 23.8120 bits/symbol
+Estimated Compressed Bytes: 49,937,478
+Histogram Bytes: 60,990,304
+Histogram/Tensor Ratio: 0.9088
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,559,222
+Unique Ratio: 0.724779
+Entropy: 25.1968 bits/symbol
+Estimated Compressed Bytes: 184,945,311
+Histogram Bytes: 170,236,952
+Histogram/Tensor Ratio: 0.7248
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,643,685
+Unique Ratio: 0.726218
+Entropy: 25.2002 bits/symbol
+Estimated Compressed Bytes: 184,969,916
+Histogram Bytes: 170,574,804
+Histogram/Tensor Ratio: 0.7262
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,667,905
+Unique Ratio: 0.726630
+Entropy: 25.2015 bits/symbol
+Estimated Compressed Bytes: 184,979,523
+Histogram Bytes: 170,671,684
+Histogram/Tensor Ratio: 0.7266
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,095
+Unique Ratio: 0.999756
+Entropy: 11.9995 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,254
+Histogram/Tensor Ratio: 0.5038
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.22.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,245,773
+Unique Ratio: 0.908719
+Entropy: 23.8118 bits/symbol
+Estimated Compressed Bytes: 49,936,990
+Histogram Bytes: 60,983,156
+Histogram/Tensor Ratio: 0.9087
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,084,759
+Unique Ratio: 0.973882
+Entropy: 21.9473 bits/symbol
+Estimated Compressed Bytes: 11,506,718
+Histogram Bytes: 16,339,100
+Histogram/Tensor Ratio: 0.9739
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,658
+Unique Ratio: 0.971474
+Entropy: 21.9424 bits/symbol
+Estimated Compressed Bytes: 11,504,153
+Histogram Bytes: 16,298,696
+Histogram/Tensor Ratio: 0.9715
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,199,737
+Unique Ratio: 0.905975
+Entropy: 23.8059 bits/symbol
+Estimated Compressed Bytes: 49,924,653
+Histogram Bytes: 60,799,012
+Histogram/Tensor Ratio: 0.9060
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,224,477
+Unique Ratio: 0.719079
+Entropy: 25.1826 bits/symbol
+Estimated Compressed Bytes: 184,840,849
+Histogram Bytes: 168,897,972
+Histogram/Tensor Ratio: 0.7191
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,658,937
+Unique Ratio: 0.726477
+Entropy: 25.1998 bits/symbol
+Estimated Compressed Bytes: 184,967,451
+Histogram Bytes: 170,635,812
+Histogram/Tensor Ratio: 0.7265
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 41,905,353
+Unique Ratio: 0.713644
+Entropy: 25.1688 bits/symbol
+Estimated Compressed Bytes: 184,739,863
+Histogram Bytes: 167,621,476
+Histogram/Tensor Ratio: 0.7136
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.23.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,123,755
+Unique Ratio: 0.901446
+Entropy: 23.7962 bits/symbol
+Estimated Compressed Bytes: 49,904,220
+Histogram Bytes: 60,495,084
+Histogram/Tensor Ratio: 0.9014
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,075,256
+Unique Ratio: 0.971617
+Entropy: 21.9427 bits/symbol
+Estimated Compressed Bytes: 11,504,304
+Histogram Bytes: 16,301,088
+Histogram/Tensor Ratio: 0.9716
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,254
+Unique Ratio: 0.971139
+Entropy: 21.9417 bits/symbol
+Estimated Compressed Bytes: 11,503,791
+Histogram Bytes: 16,293,080
+Histogram/Tensor Ratio: 0.9711
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,106,239
+Unique Ratio: 0.900402
+Entropy: 23.7940 bits/symbol
+Estimated Compressed Bytes: 49,899,613
+Histogram Bytes: 60,425,020
+Histogram/Tensor Ratio: 0.9004
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 41,997,199
+Unique Ratio: 0.715208
+Entropy: 25.1723 bits/symbol
+Estimated Compressed Bytes: 184,765,627
+Histogram Bytes: 167,988,860
+Histogram/Tensor Ratio: 0.7152
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,350,928
+Unique Ratio: 0.721232
+Entropy: 25.1869 bits/symbol
+Estimated Compressed Bytes: 184,872,742
+Histogram Bytes: 169,403,776
+Histogram/Tensor Ratio: 0.7212
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 49,762,822
+Unique Ratio: 0.847456
+Entropy: 25.4836 bits/symbol
+Estimated Compressed Bytes: 187,050,806
+Histogram Bytes: 199,051,352
+Histogram/Tensor Ratio: 0.8475
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.24.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,730,123
+Unique Ratio: 0.937588
+Entropy: 23.8725 bits/symbol
+Estimated Compressed Bytes: 50,064,303
+Histogram Bytes: 62,920,556
+Histogram/Tensor Ratio: 0.9376
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,127,464
+Unique Ratio: 0.984064
+Entropy: 21.9680 bits/symbol
+Estimated Compressed Bytes: 11,517,533
+Histogram Bytes: 16,509,920
+Histogram/Tensor Ratio: 0.9841
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,125,501
+Unique Ratio: 0.983596
+Entropy: 21.9670 bits/symbol
+Estimated Compressed Bytes: 11,517,044
+Histogram Bytes: 16,502,068
+Histogram/Tensor Ratio: 0.9836
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,735,079
+Unique Ratio: 0.937884
+Entropy: 23.8731 bits/symbol
+Estimated Compressed Bytes: 50,065,554
+Histogram Bytes: 62,940,380
+Histogram/Tensor Ratio: 0.9379
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 2,822,432
+Unique Ratio: 0.048066
+Entropy: 1.4089 bits/symbol
+Estimated Compressed Bytes: 10,341,553
+Histogram Bytes: 11,289,792
+Histogram/Tensor Ratio: 0.0481
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 38,254,569
+Unique Ratio: 0.651471
+Entropy: 21.6279 bits/symbol
+Estimated Compressed Bytes: 158,749,670
+Histogram Bytes: 153,018,340
+Histogram/Tensor Ratio: 0.6515
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,146,696
+Unique Ratio: 0.717754
+Entropy: 25.1784 bits/symbol
+Estimated Compressed Bytes: 184,810,314
+Histogram Bytes: 168,586,848
+Histogram/Tensor Ratio: 0.7178
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.25.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,248,364
+Unique Ratio: 0.908873
+Entropy: 23.8121 bits/symbol
+Estimated Compressed Bytes: 49,937,572
+Histogram Bytes: 60,993,520
+Histogram/Tensor Ratio: 0.9089
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,613
+Unique Ratio: 0.971463
+Entropy: 21.9424 bits/symbol
+Estimated Compressed Bytes: 11,504,130
+Histogram Bytes: 16,298,516
+Histogram/Tensor Ratio: 0.9715
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,392
+Unique Ratio: 0.971411
+Entropy: 21.9423 bits/symbol
+Estimated Compressed Bytes: 11,504,078
+Histogram Bytes: 16,297,632
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,336,949
+Unique Ratio: 0.914153
+Entropy: 23.8233 bits/symbol
+Estimated Compressed Bytes: 49,961,068
+Histogram Bytes: 61,347,860
+Histogram/Tensor Ratio: 0.9142
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,642,999
+Unique Ratio: 0.726206
+Entropy: 25.2004 bits/symbol
+Estimated Compressed Bytes: 184,972,041
+Histogram Bytes: 170,572,060
+Histogram/Tensor Ratio: 0.7262
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,689,222
+Unique Ratio: 0.726993
+Entropy: 25.2025 bits/symbol
+Estimated Compressed Bytes: 184,986,897
+Histogram Bytes: 170,756,952
+Histogram/Tensor Ratio: 0.7270
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,433,876
+Unique Ratio: 0.722645
+Entropy: 25.1915 bits/symbol
+Estimated Compressed Bytes: 184,906,760
+Histogram Bytes: 169,735,568
+Histogram/Tensor Ratio: 0.7226
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.26.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,253,157
+Unique Ratio: 0.909159
+Entropy: 23.8127 bits/symbol
+Estimated Compressed Bytes: 49,938,780
+Histogram Bytes: 61,012,692
+Histogram/Tensor Ratio: 0.9092
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,465
+Unique Ratio: 0.971428
+Entropy: 21.9423 bits/symbol
+Estimated Compressed Bytes: 11,504,102
+Histogram Bytes: 16,297,924
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,074,517
+Unique Ratio: 0.971441
+Entropy: 21.9424 bits/symbol
+Estimated Compressed Bytes: 11,504,117
+Histogram Bytes: 16,298,132
+Histogram/Tensor Ratio: 0.9714
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,283,776
+Unique Ratio: 0.910984
+Entropy: 23.8166 bits/symbol
+Estimated Compressed Bytes: 49,946,992
+Histogram Bytes: 61,135,168
+Histogram/Tensor Ratio: 0.9110
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,922,330
+Unique Ratio: 0.730963
+Entropy: 25.2123 bits/symbol
+Estimated Compressed Bytes: 185,058,958
+Histogram Bytes: 171,689,384
+Histogram/Tensor Ratio: 0.7310
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,483,481
+Unique Ratio: 0.723489
+Entropy: 25.1937 bits/symbol
+Estimated Compressed Bytes: 184,922,461
+Histogram Bytes: 169,933,988
+Histogram/Tensor Ratio: 0.7235
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,650,837
+Unique Ratio: 0.726339
+Entropy: 25.2005 bits/symbol
+Estimated Compressed Bytes: 184,972,241
+Histogram Bytes: 170,603,412
+Histogram/Tensor Ratio: 0.7263
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.27.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,165,653
+Unique Ratio: 0.903943
+Entropy: 23.8016 bits/symbol
+Estimated Compressed Bytes: 49,915,541
+Histogram Bytes: 60,662,676
+Histogram/Tensor Ratio: 0.9039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,116
+Unique Ratio: 0.971107
+Entropy: 21.9417 bits/symbol
+Estimated Compressed Bytes: 11,503,760
+Histogram Bytes: 16,292,528
+Histogram/Tensor Ratio: 0.9711
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,410
+Unique Ratio: 0.971177
+Entropy: 21.9418 bits/symbol
+Estimated Compressed Bytes: 11,503,828
+Histogram Bytes: 16,293,704
+Histogram/Tensor Ratio: 0.9712
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,200,983
+Unique Ratio: 0.906049
+Entropy: 23.8061 bits/symbol
+Estimated Compressed Bytes: 49,924,921
+Histogram Bytes: 60,803,996
+Histogram/Tensor Ratio: 0.9061
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,392,280
+Unique Ratio: 0.721936
+Entropy: 25.1890 bits/symbol
+Estimated Compressed Bytes: 184,888,106
+Histogram Bytes: 169,569,184
+Histogram/Tensor Ratio: 0.7219
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 41,896,881
+Unique Ratio: 0.713500
+Entropy: 25.1683 bits/symbol
+Estimated Compressed Bytes: 184,735,930
+Histogram Bytes: 167,587,588
+Histogram/Tensor Ratio: 0.7135
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,533,484
+Unique Ratio: 0.724341
+Entropy: 25.1950 bits/symbol
+Estimated Compressed Bytes: 184,931,995
+Histogram Bytes: 170,134,000
+Histogram/Tensor Ratio: 0.7243
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.28.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,175,992
+Unique Ratio: 0.904560
+Entropy: 23.8029 bits/symbol
+Estimated Compressed Bytes: 49,918,270
+Histogram Bytes: 60,704,032
+Histogram/Tensor Ratio: 0.9046
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,075,912
+Unique Ratio: 0.971773
+Entropy: 21.9430 bits/symbol
+Estimated Compressed Bytes: 11,504,471
+Histogram Bytes: 16,303,712
+Histogram/Tensor Ratio: 0.9718
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,078,120
+Unique Ratio: 0.972300
+Entropy: 21.9441 bits/symbol
+Estimated Compressed Bytes: 11,505,025
+Histogram Bytes: 16,312,544
+Histogram/Tensor Ratio: 0.9723
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,188,150
+Unique Ratio: 0.905284
+Entropy: 23.8044 bits/symbol
+Estimated Compressed Bytes: 49,921,399
+Histogram Bytes: 60,752,664
+Histogram/Tensor Ratio: 0.9053
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,758,286
+Unique Ratio: 0.728169
+Entropy: 25.2036 bits/symbol
+Estimated Compressed Bytes: 184,994,956
+Histogram Bytes: 171,033,208
+Histogram/Tensor Ratio: 0.7282
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 49,318,774
+Unique Ratio: 0.839894
+Entropy: 25.4665 bits/symbol
+Estimated Compressed Bytes: 186,925,292
+Histogram Bytes: 197,275,160
+Histogram/Tensor Ratio: 0.8399
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 15,337,551
+Unique Ratio: 0.261197
+Entropy: 7.5713 bits/symbol
+Estimated Compressed Bytes: 55,573,301
+Histogram Bytes: 61,350,268
+Histogram/Tensor Ratio: 0.2612
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 1
+Unique Ratio: 0.000244
+Entropy: -0.0000 bits/symbol
+Estimated Compressed Bytes: -0
+Histogram Bytes: 66
+Histogram/Tensor Ratio: 0.0040
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.29.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 1
+Unique Ratio: 0.000244
+Entropy: -0.0000 bits/symbol
+Estimated Compressed Bytes: -0
+Histogram Bytes: 66
+Histogram/Tensor Ratio: 0.0040
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 9,523
+Unique Ratio: 0.000568
+Entropy: 0.0182 bits/symbol
+Estimated Compressed Bytes: 38,071
+Histogram Bytes: 38,156
+Histogram/Tensor Ratio: 0.0006
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,088
+Unique Ratio: 0.000975
+Entropy: 0.0229 bits/symbol
+Estimated Compressed Bytes: 12,000
+Histogram Bytes: 16,416
+Histogram/Tensor Ratio: 0.0010
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 1,729,504
+Unique Ratio: 0.412346
+Entropy: 9.5603 bits/symbol
+Estimated Compressed Bytes: 5,012,362
+Histogram Bytes: 6,918,080
+Histogram/Tensor Ratio: 0.4123
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,288,118
+Unique Ratio: 0.911243
+Entropy: 23.8168 bits/symbol
+Estimated Compressed Bytes: 49,947,374
+Histogram Bytes: 61,152,536
+Histogram/Tensor Ratio: 0.9112
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,700,235
+Unique Ratio: 0.727181
+Entropy: 25.2011 bits/symbol
+Estimated Compressed Bytes: 184,977,180
+Histogram Bytes: 170,801,004
+Histogram/Tensor Ratio: 0.7272
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,527,376
+Unique Ratio: 0.724237
+Entropy: 25.1954 bits/symbol
+Estimated Compressed Bytes: 184,934,776
+Histogram Bytes: 170,109,568
+Histogram/Tensor Ratio: 0.7242
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,919,840
+Unique Ratio: 0.730921
+Entropy: 25.2122 bits/symbol
+Estimated Compressed Bytes: 185,058,583
+Histogram Bytes: 171,679,424
+Histogram/Tensor Ratio: 0.7309
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.30.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.self_attn.q_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,153,126
+Unique Ratio: 0.903197
+Entropy: 23.8000 bits/symbol
+Estimated Compressed Bytes: 49,912,266
+Histogram Bytes: 60,612,568
+Histogram/Tensor Ratio: 0.9032
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.self_attn.k_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,073,654
+Unique Ratio: 0.971235
+Entropy: 21.9419 bits/symbol
+Estimated Compressed Bytes: 11,503,897
+Histogram Bytes: 16,294,680
+Histogram/Tensor Ratio: 0.9712
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.self_attn.v_proj.weight
+Elements: 4,194,304
+Tensor Bytes: 16,777,216
+Unique Values: 4,088,592
+Unique Ratio: 0.974796
+Entropy: 21.9492 bits/symbol
+Estimated Compressed Bytes: 11,507,698
+Histogram Bytes: 16,354,432
+Histogram/Tensor Ratio: 0.9748
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.self_attn.o_proj.weight
+Elements: 16,777,216
+Tensor Bytes: 67,108,864
+Unique Values: 15,261,395
+Unique Ratio: 0.909650
+Entropy: 23.8138 bits/symbol
+Estimated Compressed Bytes: 49,941,093
+Histogram Bytes: 61,045,644
+Histogram/Tensor Ratio: 0.9097
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.mlp.gate_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,507,312
+Unique Ratio: 0.723895
+Entropy: 25.1945 bits/symbol
+Estimated Compressed Bytes: 184,928,666
+Histogram Bytes: 170,029,312
+Histogram/Tensor Ratio: 0.7239
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.mlp.up_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 42,592,766
+Unique Ratio: 0.725350
+Entropy: 25.1981 bits/symbol
+Estimated Compressed Bytes: 184,954,707
+Histogram Bytes: 170,371,128
+Histogram/Tensor Ratio: 0.7254
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.mlp.down_proj.weight
+Elements: 58,720,256
+Tensor Bytes: 234,881,024
+Unique Values: 43,075,948
+Unique Ratio: 0.733579
+Entropy: 25.2187 bits/symbol
+Estimated Compressed Bytes: 185,105,900
+Histogram Bytes: 172,303,856
+Histogram/Tensor Ratio: 0.7336
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.input_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.layers.31.post_attention_layernorm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: model.norm.weight
+Elements: 4,096
+Tensor Bytes: 16,384
+Unique Values: 4,096
+Unique Ratio: 1.000000
+Entropy: 12.0000 bits/symbol
+Estimated Compressed Bytes: 6,144
+Histogram Bytes: 8,256
+Histogram/Tensor Ratio: 0.5039
+
+================================================================================
+STREAM: exp_avg
+Tensor: lm_head.weight
+Elements: 525,336,576
+Tensor Bytes: 2,101,346,304
+Unique Values: 158,353,253
+Unique Ratio: 0.301432
+Entropy: 26.7481 bits/symbol
+Estimated Compressed Bytes: 1,756,470,310
+Histogram Bytes: 633,413,076
+Histogram/Tensor Ratio: 0.3014
+

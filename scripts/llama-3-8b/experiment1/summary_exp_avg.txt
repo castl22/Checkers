@@ -1,0 +1,18 @@
+================================================================================
+GLOBAL SUMMARY: exp_avg
+================================================================================
+
+Total tensors: 291
+Average unique ratio: 0.827094
+Average entropy: 19.9291
+Total tensor bytes: 32,121,044,992
+Total histogram bytes: 21,379,556,794
+Histogram/Tensor ratio: 0.6656
+
+Largest histogram ratio:
+  model.layers.2.self_attn.v_proj.weight
+  ratio=0.9900
+
+Smallest histogram ratio:
+  model.layers.30.self_attn.q_proj.weight
+  ratio=0.0006

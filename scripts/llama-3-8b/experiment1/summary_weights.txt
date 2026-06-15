@@ -1,0 +1,18 @@
+================================================================================
+GLOBAL SUMMARY: weights
+================================================================================
+
+Total tensors: 291
+Average unique ratio: 0.824101
+Average entropy: 20.5686
+Total tensor bytes: 32,121,044,992
+Total histogram bytes: 20,751,968,760
+Histogram/Tensor ratio: 0.6461
+
+Largest histogram ratio:
+  model.layers.12.self_attn.k_proj.weight
+  ratio=0.9773
+
+Smallest histogram ratio:
+  model.layers.30.self_attn.q_proj.weight
+  ratio=0.0011

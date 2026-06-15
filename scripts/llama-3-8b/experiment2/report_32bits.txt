@@ -1,0 +1,234 @@
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_0_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_1_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_2_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_3_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_4_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_5_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_6_mp_rank_00_optim_states.pt
+Loading /p/lustre5/kogiou1/llama-3-8b/8_GPUs/math/DS/epoch_0/bf16_zero_pp_rank_7_mp_rank_00_optim_states.pt
+[2026-06-12 08:55:57,143] [INFO] [real_accelerator.py:219:get_accelerator] Setting ds_accelerator to cuda (override)
+
+#################### STREAM: weights ####################
+Loaded 291 tensors
+Computing stats + HLL sketches...
+[STATS] 10/291
+[STATS] 20/291
+[STATS] 30/291
+[STATS] 40/291
+[STATS] 50/291
+[STATS] 60/291
+[STATS] 70/291
+[STATS] 80/291
+[STATS] 90/291
+[STATS] 100/291
+[STATS] 110/291
+[STATS] 120/291
+[STATS] 130/291
+[STATS] 140/291
+[STATS] 150/291
+[STATS] 160/291
+[STATS] 170/291
+[STATS] 180/291
+[STATS] 190/291
+[STATS] 200/291
+[STATS] 210/291
+[STATS] 220/291
+[STATS] 230/291
+[STATS] 240/291
+[STATS] 250/291
+[STATS] 260/291
+[STATS] 270/291
+[STATS] 280/291
+[STATS] 290/291
+[STATS] 291/291
+Computing cluster unions (HLL merge)...
+[CLUSTER 0] 2 tensors
+[CLUSTER 0] done | est_uniques=135,729,215
+[CLUSTER 1] 63 tensorsone
+[CLUSTER 1] done | est_uniques=137,789,052
+[CLUSTER 2] 60 tensorsone
+[CLUSTER 2] done | est_uniques=91,544,975
+[CLUSTER 3] 86 tensorsone
+[CLUSTER 3] done | est_uniques=187,270,640
+[CLUSTER 4] 74 tensorsone
+[CLUSTER 4] done | est_uniques=5,255,709
+[CLUSTER 5] 2 tensorsdone
+[CLUSTER 5] done | est_uniques=18,726,654
+[CLUSTER 6] 2 tensorsdone
+[CLUSTER 6] done | est_uniques=58,738,551
+[CLUSTER 7] 2 tensorsdone
+[CLUSTER 7] done | est_uniques=47,992,844
+[UNION] 8/8 clusters done
+Cluster unions complete.
+
+========================================
+STREAM: weights
+========================================
+Tensors: 291
+Clusters: 8
+Singletons: 0
+
+--- CLUSTERS ---
+Avg unique ratio: 0.824101
+Avg entropy: 20.5686
+Tensor bytes: 32,121,044,992
+Histogram bytes: 41,504,940,016
+Hist/Tensor ratio: 1.2921
+
+--- SAVINGS ---
+Baseline histogram bytes: 41,504,940,016
+Cluster-only bytes: 5,464,381,635
+Singleton bytes: 0
+TOTAL compressed: 5,464,381,635
+Savings: 36,040,558,381
+Ratio: 0.1317
+
+#################### STREAM: exp_avg ####################
+Loaded 291 tensors
+Computing stats + HLL sketches...
+[STATS] 10/291
+[STATS] 20/291
+[STATS] 30/291
+[STATS] 40/291
+[STATS] 50/291
+[STATS] 60/291
+[STATS] 70/291
+[STATS] 80/291
+[STATS] 90/291
+[STATS] 100/291
+[STATS] 110/291
+[STATS] 120/291
+[STATS] 130/291
+[STATS] 140/291
+[STATS] 150/291
+[STATS] 160/291
+[STATS] 170/291
+[STATS] 180/291
+[STATS] 190/291
+[STATS] 200/291
+[STATS] 210/291
+[STATS] 220/291
+[STATS] 230/291
+[STATS] 240/291
+[STATS] 250/291
+[STATS] 260/291
+[STATS] 270/291
+[STATS] 280/291
+[STATS] 290/291
+[STATS] 291/291
+Computing cluster unions (HLL merge)...
+[CLUSTER 0] 2 tensors
+[CLUSTER 0] done | est_uniques=188,317,954
+[CLUSTER 1] 63 tensorsone
+[CLUSTER 1] done | est_uniques=202,947,177
+[CLUSTER 2] 62 tensorsone
+[CLUSTER 2] done | est_uniques=116,934,963
+[CLUSTER 3] 78 tensorsone
+[CLUSTER 3] done | est_uniques=178,988,880
+[CLUSTER 4] 74 tensorsone
+[CLUSTER 4] done | est_uniques=3,931,552
+[CLUSTER 5] 7 tensorsdone
+[CLUSTER 5] done | est_uniques=202,642,447
+[CLUSTER 6] 3 tensorsdone
+[CLUSTER 6] done | est_uniques=98,554,953
+[CLUSTER 7] 2 tensorsdone
+[CLUSTER 7] done | est_uniques=57,049,373
+[UNION] 8/8 clusters done
+Cluster unions complete.
+
+========================================
+STREAM: exp_avg
+========================================
+Tensors: 291
+Clusters: 8
+Singletons: 0
+
+--- CLUSTERS ---
+Avg unique ratio: 0.827094
+Avg entropy: 19.9291
+Tensor bytes: 32,121,044,992
+Histogram bytes: 42,760,094,376
+Hist/Tensor ratio: 1.3312
+
+--- SAVINGS ---
+Baseline histogram bytes: 42,760,094,376
+Cluster-only bytes: 8,394,938,913
+Singleton bytes: 0
+TOTAL compressed: 8,394,938,913
+Savings: 34,365,155,463
+Ratio: 0.1963
+
+#################### STREAM: exp_avg_sq ####################
+Loaded 291 tensors
+Computing stats + HLL sketches...
+[STATS] 10/291
+[STATS] 20/291
+[STATS] 30/291
+[STATS] 40/291
+[STATS] 50/291
+[STATS] 60/291
+[STATS] 70/291
+[STATS] 80/291
+[STATS] 90/291
+[STATS] 100/291
+[STATS] 110/291
+[STATS] 120/291
+[STATS] 130/291
+[STATS] 140/291
+[STATS] 150/291
+[STATS] 160/291
+[STATS] 170/291
+[STATS] 180/291
+[STATS] 190/291
+[STATS] 200/291
+[STATS] 210/291
+[STATS] 220/291
+[STATS] 230/291
+[STATS] 240/291
+[STATS] 250/291
+[STATS] 260/291
+[STATS] 270/291
+[STATS] 280/291
+[STATS] 290/291
+[STATS] 291/291
+Computing cluster unions (HLL merge)...
+[CLUSTER 0] 2 tensors
+[CLUSTER 0] done | est_uniques=161,039,017
+[CLUSTER 1] 63 tensorsone
+[CLUSTER 1] done | est_uniques=182,206,724
+[CLUSTER 2] 62 tensorsone
+[CLUSTER 2] done | est_uniques=100,325,035
+[CLUSTER 3] 41 tensorsone
+[CLUSTER 3] done | est_uniques=133,617,396
+[CLUSTER 4] 74 tensorsone
+[CLUSTER 4] done | est_uniques=3,845,652
+[CLUSTER 5] 41 tensorsone
+[CLUSTER 5] done | est_uniques=173,887,277
+[CLUSTER 6] 6 tensorsdone
+[CLUSTER 6] done | est_uniques=178,321,550
+[CLUSTER 7] 2 tensorsdone
+[CLUSTER 7] done | est_uniques=55,443,426
+[UNION] 8/8 clusters done
+Cluster unions complete.
+
+========================================
+STREAM: exp_avg_sq
+========================================
+Tensors: 291
+Clusters: 8
+Singletons: 0
+
+--- CLUSTERS ---
+Avg unique ratio: 0.786121
+Avg entropy: 19.8235
+Tensor bytes: 32,121,044,992
+Histogram bytes: 38,244,551,904
+Hist/Tensor ratio: 1.1906
+
+--- SAVINGS ---
+Baseline histogram bytes: 38,244,551,904
+Cluster-only bytes: 7,909,489,127
+Singleton bytes: 0
+TOTAL compressed: 7,909,489,127
+Savings: 30,335,062,777
+Ratio: 0.2068
