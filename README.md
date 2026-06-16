@@ -19,6 +19,6 @@ export CHECKERS_ANALYZE_DEBUG_SYNC=1
 make -j
 ```
 
-# Usage
+## Usage
 ```bash
 ./examples/script_llama_zero3.sh
