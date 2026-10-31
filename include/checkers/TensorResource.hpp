@@ -233,4 +233,11 @@ private:
     std::vector<TensorFragment> fragments_;
 };
  
+struct TensorExtraction {
+    void*          ptr       = nullptr;
+    size_t         byte_size = 0;
+    std::string    source;
+    TensorMetadata meta;
+};
+
 } // namespace checkers

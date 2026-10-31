@@ -1,15 +1,20 @@
 #include "checkers/api.hpp"
-#include "checkers/ANSCompressor.hpp"
+#include "checkers/TensorResource.hpp"
+#include "checkers/CheckpointCompressor.hpp"
 #include "checkers/MemoryManager.hpp"
-#include "checkers/TensorAnalyzer.hpp"
 #include "checkers/logging.hpp"
 #include <pybind11/pybind11.h>     // Include pybind11 BEFORE referencing py::...
 #include <pybind11/eval.h>         // Often needed for py::str
+#include <pybind11/stl.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
+#include <iostream>
+#include <memory>
 #include <string>
 #include <cstdlib>
+#include <cstdint>
 #include <stdexcept>
 #include <thread>
 #include <unordered_set>
@@ -19,6 +24,8 @@
 namespace py = pybind11;
 
 namespace checkers {
+
+// TensorExtraction is defined in checkers/TensorResource.hpp
 
 static DataType parse_dtype(const std::string& s);
 
@@ -138,9 +145,9 @@ bool submit_extraction(MemoryManager& mgr,
                        double discovery_ms) {
     extraction.meta.name = name;
     extraction.meta.category = category;
-    extraction.meta.histogram_bins = histogram_bins;
+    extraction.meta.histogram_bins = histogram_bins;   // legacy field; unused by the compressor
     TensorMetadata submitted_meta = extraction.meta;
-    mgr.submit_tensor(name, extraction.ptr, extraction.byte_size, std::move(extraction.meta));
+    mgr.register_shard_tensor(name, extraction.ptr, extraction.byte_size, std::move(extraction.meta));
     mgr.note_discovery(submitted_meta, discovery_ms);
     return true;
 }
@@ -535,15 +542,15 @@ size_t discover_zero3_flat_states(py::object optimizer,
         const size_t flat_size = fp32_flat.attr("numel")().cast<size_t>();
         if (flat_size == 0) continue;
 
-        // Total logical elements in this group (sum of ds_numel, not partition_numel)
-        size_t total_ds_numel = 0;
-        for (const auto& p : group_params[g]) total_ds_numel += p.ds_numel;
-
-        // This rank's contiguous territory in the global ds_numel space
-        const size_t rank_start = static_cast<size_t>(global_rank) * flat_size;
-        const size_t rank_end   = std::min(
-            (static_cast<size_t>(global_rank) + 1) * flat_size,
-            total_ds_numel);
+        // group_params[g] already holds EVERY param with a grad_position entry
+        // for this rank's partition of group g; (flat_offset, flat_numel) is
+        // exactly that param's slice inside fp32_flat, and those slices tile
+        // [0, flat_size).  grad_position IS the authoritative ZeRO-3 ownership
+        // map -- so there is no further filtering to do here.  (An earlier
+        // version additionally filtered by cumulative full-model ds_numel
+        // territory, comparing full-model offsets against per-rank flat-buffer
+        // bounds; that dropped ~7/8 of every rank's shard -> only 13% of the
+        // model was ever captured.)
 
         // bf16 flat buffer for model state (same layout as fp32, different dtype)
         py::object fp16_flat = py::none();
@@ -559,21 +566,9 @@ size_t discover_zero3_flat_states(py::object optimizer,
             if (st.contains(easq_key)) exp_avg_sq_flat = st[easq_key];
         }
 
-        // Walk params in flat-buffer order, accumulating global ds_numel offset
-        size_t global_ds_offset = 0;
+        // Every param slice grad_position reported for this rank -> register it.
         for (const auto& pinfo : group_params[g]) {
-            const size_t p_start = global_ds_offset;
-            const size_t p_end   = global_ds_offset + pinfo.ds_numel;
-            global_ds_offset    += pinfo.ds_numel;
-
-            // Skip parameters outside this rank's global territory
-            if (p_end <= rank_start || p_start >= rank_end) {
-                ++skipped_tensors;
-                continue;
-            }
-
-            // Use grad_position offsets for the actual flat buffer data access.
-            // This gives the rank's own physical shard of the parameter.
+            // grad_position offsets index directly into this rank's flat buffer.
             const size_t dest_offset  = pinfo.flat_offset;
             const size_t num_elements = pinfo.flat_numel;
             size_t n_for_param = 0;
@@ -885,412 +880,242 @@ bool extract_tensor(py::object param,
 } // namespace
 
 static DataType parse_dtype(const std::string& s) {
-    if (s.find("float32") != std::string::npos) return DataType::Float32;
-    if (s.find("float16") != std::string::npos) return DataType::Float16;
-    if (s.find("bfloat16")!= std::string::npos) return DataType::BFloat16;
-    if (s.find("int8")    != std::string::npos) return DataType::Int8;
+    // NOTE: check "bfloat16" before "float16" -- the latter is a substring of
+    // the former, so the old order silently tagged every bf16 tensor as fp16.
+    if (s.find("bfloat16") != std::string::npos) return DataType::BFloat16;
+    if (s.find("float32")  != std::string::npos) return DataType::Float32;
+    if (s.find("float16")  != std::string::npos) return DataType::Float16;
+    if (s.find("int8")     != std::string::npos) return DataType::Int8;
     return DataType::Unknown;
 }
 
 // ------------------------------------------------------------------ //
-// Public API Implementation
+// Public API implementation
 // ------------------------------------------------------------------ //
+namespace {
 
+// Parse the Python target selector (None | "all" | name | [names] | int mask)
+// into a CompressTargets bitmask.
+uint32_t targets_from_object(const py::object& sel) {
+    using T = CompressTargets;
+    auto name_bit = [](const std::string& s) -> uint32_t {
+        if (s == "all")            return static_cast<uint32_t>(T::All);
+        if (s == "model_state")    return static_cast<uint32_t>(T::ModelState);
+        if (s == "master_weights") return static_cast<uint32_t>(T::MasterWeights);
+        if (s == "exp_avg")        return static_cast<uint32_t>(T::ExpAvg);
+        if (s == "exp_avg_sq")     return static_cast<uint32_t>(T::ExpAvgSq);
+        throw std::runtime_error("unknown compression target: '" + s + "'");
+    };
+
+    if (sel.is_none()) return static_cast<uint32_t>(T::All);
+    if (py::isinstance<py::str>(sel)) return name_bit(sel.cast<std::string>());
+    if (py::isinstance<py::int_>(sel)) {
+        const uint32_t v = sel.cast<uint32_t>();
+        return v ? v : static_cast<uint32_t>(T::All);
+    }
+    if (py::isinstance<py::list>(sel) || py::isinstance<py::tuple>(sel) || py::isinstance<py::set>(sel)) {
+        uint32_t mask = 0;
+        for (auto item : sel) mask |= name_bit(py::str(item).cast<std::string>());
+        return mask ? mask : static_cast<uint32_t>(T::All);
+    }
+    throw std::runtime_error("targets must be None, a str, an int mask, or a list/tuple/set of str");
+}
+
+// Discover this rank's shard and register every tensor with the MemoryManager.
+// Returns the number of skipped tensors.
+size_t run_discovery(py::object                         model_engine,
+                     py::object                         optimizer,
+                     MemoryManager&                     mgr,
+                     const std::shared_ptr<RankLogger>& logger,
+                     int                                global_rank) {
+    py::object py_list_func = py::module_::import("builtins").attr("list");
+    py::list   named_params = py_list_func(model_engine.attr("module").attr("named_parameters")());
+    py::object resolved_optimizer = resolve_optimizer(model_engine, optimizer);
+
+    size_t skipped_tensors = 0;
+    std::vector<py::object>& lifetime_guard = mgr.lifetime_guard();
+
+    if (has_zero3_flat_groups(resolved_optimizer)) {
+        discover_zero3_flat_states(resolved_optimizer, named_params, global_rank,
+                                   py_list_func, /*histogram_bins=*/256, mgr, logger,
+                                   lifetime_guard, skipped_tensors);
+    } else {
+        for (auto item : named_params) {
+            auto tuple_item = item.cast<py::tuple>();
+            std::string name = tuple_item[0].cast<std::string>();
+            py::object  param = tuple_item[1];
+
+            const auto t0 = std::chrono::steady_clock::now();
+            TensorExtraction extraction;
+            if (!extract_tensor(param, global_rank, py_list_func, extraction)) {
+                ++skipped_tensors;
+                if (logger) logger->log_tensor_skipped(name, "no local device storage on this rank");
+                continue;
+            }
+            lifetime_guard.push_back(param);
+            const double ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - t0).count();
+            if (submit_extraction(mgr, name, TensorCategory::ModelState, extraction, 256, ms)) {
+                mgr.register_param(name, param, true);
+            }
+        }
+    }
+    return skipped_tensors;
+}
+
+} // namespace
+
+uint32_t parse_targets(const py::object& selector) {
+    return targets_from_object(selector);
+}
+
+// ------------------------------------------------------------------ //
 void initialize_context(py::object model_engine,
                         py::object optimizer,
-                        size_t histogram_bins,
-                        size_t background_threads) {
+                        py::object stage_targets,
+                        int64_t    staging_budget_mb,
+                        uint32_t   group_size,
+                        int32_t    zstd_level,
+                        uint32_t   compute_streams,
+                        bool       measure_snr,
+                        bool       per_group,
+                        bool       exp_avg_sq_aggressive,
+                        uint32_t   tt_ndim,
+                        uint32_t   tt_max_rank,
+                        double     tt_energy_keep,
+                        int32_t    tt_eq_mode) {
     try {
-        
         const auto total_start = std::chrono::steady_clock::now();
-
-        if (histogram_bins == 0) {
-            throw std::runtime_error("histogram_bins must be greater than zero");
-        }
-        if (background_threads == 0) {
-            throw std::runtime_error("background_threads must be greater than zero");
-        }
+        if (group_size == 0)      throw std::runtime_error("group_size must be > 0");
+        if (compute_streams == 0) throw std::runtime_error("compute_streams must be > 0");
 
         const int global_rank = extract_rank(model_engine, "global_rank", "RANK");
-        const int local_rank = extract_rank(model_engine, "local_rank", "LOCAL_RANK");
-
+        const int local_rank  = extract_rank(model_engine, "local_rank",  "LOCAL_RANK");
         auto logger = RankLogger::create(global_rank, local_rank);
-
-        // =====================================================
-        // PHASE 1: SETUP
-        // =====================================================
-        const auto setup_start = std::chrono::steady_clock::now();
-
-#if defined(RAJA_ENABLE_HIP)
-        (void)hipFree(nullptr);
-#endif
-
-        auto& rm = umpire::ResourceManager::getInstance();
-        (void)rm;
 
         auto& mgr = MemoryManager::instance();
         mgr.reset();
-        mgr.set_default_histogram_bins(histogram_bins);
-        mgr.begin_pipeline(logger, background_threads, background_threads);
-        mgr.build_global_descriptor_array();
-
-        const auto setup_end = std::chrono::steady_clock::now();
+        mgr.set_logger(logger);
 
         logger->log_message("[checkers] initialize_context begin");
-        logger->log_message("[checkers] histogram_bins=" + std::to_string(histogram_bins)
-                            + " background_threads=" + std::to_string(background_threads));
 
-        // =====================================================
-        // PHASE 2: DISCOVERY
-        // =====================================================
-        const auto discovery_start = std::chrono::steady_clock::now();
+        CompressionConfig cfg;
+        cfg.stage_targets     = targets_from_object(stage_targets);
+        cfg.staging_budget_mb = staging_budget_mb;
+        cfg.group_size        = group_size;
+        cfg.zstd_level        = zstd_level;
+        cfg.compute_streams   = compute_streams;
+        cfg.measure_snr       = measure_snr;
+        cfg.per_group         = per_group;
+        cfg.exp_avg_sq_aggressive = exp_avg_sq_aggressive;
+        if (tt_ndim)              cfg.tt_ndim = tt_ndim;
+        if (tt_max_rank)          cfg.tt_max_rank = tt_max_rank;
+        if (tt_energy_keep > 0.0) cfg.tt_energy_keep = tt_energy_keep;
+        cfg.tt_eq_mode = tt_eq_mode;
 
-        py::object py_list_func = py::module_::import("builtins").attr("list");
-        py::list named_params = py_list_func(model_engine.attr("module").attr("named_parameters")());
-        py::object resolved_optimizer = resolve_optimizer(model_engine, optimizer);
-        size_t skipped_tensors = 0;
+        logger->log_message(
+            "[checkers] config stage_targets=" + std::to_string(cfg.stage_targets) +
+            " group_size="        + std::to_string(cfg.group_size) +
+            " zstd_level="        + std::to_string(cfg.zstd_level) +
+            " compute_streams="   + std::to_string(cfg.compute_streams) +
+            " staging_budget_mb=" + std::to_string(cfg.staging_budget_mb) +
+            " per_group="         + std::to_string(cfg.per_group) +
+            " exp_avg_sq_aggressive=" + std::to_string(cfg.exp_avg_sq_aggressive) +
+            " tt_ndim=" + std::to_string(cfg.tt_ndim) +
+            " tt_max_rank=" + std::to_string(cfg.tt_max_rank) +
+            " tt_energy_keep=" + std::to_string(cfg.tt_energy_keep) +
+            " tt_eq_mode=" + std::to_string(cfg.tt_eq_mode) +
+            " measure_snr="       + std::to_string(cfg.measure_snr));
 
-        // CROSS-LANGUAGE RAII GUARD: Keeps Python allocations physically pinned in VRAM
-        std::vector<py::object> lifetime_guard;
+        const auto disc_start = std::chrono::steady_clock::now();
+        const size_t skipped = run_discovery(model_engine, optimizer, mgr, logger, global_rank);
+        mgr.set_skipped_count(skipped);
+        const double disc_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - disc_start).count();
 
-        if (has_zero3_flat_groups(resolved_optimizer)) {
-            discover_zero3_flat_states(resolved_optimizer,
-                                       named_params,
-                                       global_rank,
-                                       py_list_func,
-                                       histogram_bins,
-                                       mgr,
-                                       logger,
-                                       lifetime_guard,
-                                       skipped_tensors);
-        } else {
-            for (auto item : named_params) {
-                auto tuple_item = item.cast<py::tuple>();
-                std::string name = tuple_item[0].cast<std::string>();
-                py::object param = tuple_item[1];
+        const auto alloc_start = std::chrono::steady_clock::now();
+        auto& comp = CheckpointCompressor::instance();
+        comp.configure(cfg, logger, global_rank);
+        comp.allocate(mgr);
+        const double alloc_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - alloc_start).count();
 
-                const auto tensor_discovery_start = std::chrono::steady_clock::now();
-                TensorExtraction extraction;
-                if (!extract_tensor(param, global_rank, py_list_func, extraction)) {
-                    ++skipped_tensors;
-                    logger->log_tensor_skipped(name, "no local device storage on this rank");
-                    continue;
-                }
-
-                lifetime_guard.push_back(param);
-                const double tensor_discovery_ms = std::chrono::duration<double, std::milli>(
-                    std::chrono::steady_clock::now() - tensor_discovery_start).count();
-                if (submit_extraction(mgr,
-                                      name,
-                                      TensorCategory::ModelState,
-                                      extraction,
-                                      histogram_bins,
-                                      tensor_discovery_ms)) {
-                    mgr.register_param(name, param, true);
-                }
-            }
-        }
-
-        const auto discovery_end = std::chrono::steady_clock::now();
-
-        mgr.set_skipped_count(skipped_tensors);
-
-        // =====================================================
-        // PHASE 3: FLUSH / WAIT FOR WORKERS
-        // =====================================================
-        const auto flush_start =
-            std::chrono::steady_clock::now();
-
-
-        mgr.flush_pipeline();
-
-        const auto flush_end = std::chrono::steady_clock::now();
-
-        // =====================================================
-        // TIMING REPORT
-        // =====================================================
-        const double setup_ms = std::chrono::duration<double, std::milli>(setup_end - setup_start).count();
-        const double discovery_ms = std::chrono::duration<double, std::milli>(discovery_end - discovery_start).count();
-        const double flush_ms = std::chrono::duration<double, std::milli>(flush_end - flush_start).count();
-        const double total_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - total_start).count();
-
-        logger->log_message("[TIMING] setup_ms=" + std::to_string(setup_ms));
-        logger->log_message("[TIMING] discovery_ms=" + std::to_string(discovery_ms));
-        logger->log_message("[TIMING] flush_ms=" + std::to_string(flush_ms));
-        logger->log_message("[TIMING] total_ms=" + std::to_string(total_ms));
-
-        logger->log_summary(
-            mgr.get_category_stats(),
-            mgr.skipped_count(),
-            mgr.get_slab_count(),
-            mgr.batch_count());
+        const double total_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - total_start).count();
+        logger->log_message("[TIMING] discovery_ms="        + std::to_string(disc_ms));
+        logger->log_message("[TIMING] staging_alloc_ms="    + std::to_string(alloc_ms));
+        logger->log_message("[TIMING] initialize_context_total_ms=" + std::to_string(total_ms));
+        logger->log_summary(mgr.get_category_stats(), mgr.skipped_count(), 0, 0);
 
     } catch (const std::exception& e) {
         throw std::runtime_error("[checkers] Context initialization failed: " + std::string(e.what()));
     }
 }
 
-void analyze_tensors() {
+// ------------------------------------------------------------------ //
+py::dict compress_and_save(const std::string& output_dir,
+                           py::object         error_bound,
+                           py::object         targets,
+                           bool               blocking,
+                           bool               allow_lossless) {
     try {
-        auto& mgr = MemoryManager::instance();
-        auto logger = mgr.get_logger(); // Pull from manager
-        
-        if (!logger) {
-            throw std::runtime_error("Context not initialized: MemoryManager logger is null.");
-        }
-
-        TensorAnalyzer analyzer;
-
-        DeviceTensorRecord* d_records = mgr.device_records();
-        size_t record_count = mgr.record_count();
-        if (!d_records || record_count == 0) return;
-        const auto& host_records = mgr.host_records();
-        const size_t active_records = std::min(record_count, host_records.size());
-        if (active_records == 0) return;
-
-        logger->log_message("[checkers] analyze_tensors begin");
-
-
-        logger->log_message("[checkers] analyze_tensors pointer policy=cached_discovery_ptrs records="
-                            + std::to_string(record_count)
-                            + " host_records=" + std::to_string(host_records.size()));
-
-        const bool debug_record_sync = []() {
-            const char* v = std::getenv("CHECKERS_ANALYZE_DEBUG_SYNC");
-            return v != nullptr && std::string(v) != "0";
-        }();
-
-        auto sync_or_throw = [&](const std::string& stage,
-                                 size_t index,
-                                 const std::string& name) {
-#if defined(__HIP_PLATFORM_AMD__) || defined(RAJA_ENABLE_HIP)
-            hipError_t status = hipDeviceSynchronize();
-            if (status == hipSuccess) return;
-            std::string msg = "[checkers] analyze sync failed backend=HIP stage=" + stage
-                            + " error=" + std::string(hipGetErrorString(status));
-#else
-            cudaError_t status = cudaDeviceSynchronize();
-            if (status == cudaSuccess) return;
-            std::string msg = "[checkers] analyze sync failed backend=CUDA stage=" + stage
-                            + " error=" + std::string(cudaGetErrorString(status));
-#endif
-            if (index != static_cast<size_t>(-1)) {
-                msg += " index=" + std::to_string(index) + " name=" + name;
-            }
-            logger->log_message(msg);
-            throw std::runtime_error(msg);
-        };
-
-        size_t suspect_count = 0;
-        for (size_t i = 0; i < active_records; ++i) {
-            const auto& rec = host_records[i];
-            if (rec.d_ptr == nullptr || rec.num_elements == 0) {
-                ++suspect_count;
-                logger->log_message("[checkers] analyze suspect_record index="
-                                    + std::to_string(i)
-                                    + " name=" + mgr.get_name_from_index(i)
-                                    + " d_ptr=" + std::to_string(reinterpret_cast<uintptr_t>(rec.d_ptr))
-                                    + " num_elements=" + std::to_string(rec.num_elements)
-                                    + " dtype=" + std::to_string(static_cast<int>(rec.data_type)));
-            }
-        }
-        if (suspect_count > 0) {
-            logger->log_message("[checkers] analyze suspect_record_count=" + std::to_string(suspect_count));
-        }
-
-        // Upload the complete host-side record mirror to the GPU descriptor array
-        // in one bulk transfer. Workers populate global_host_records_ (CPU) but
-        // deliberately do NOT touch d_records_ (GPU) so that no synchronous GPU
-        // copy ever runs while holding registry_mutex_ in a worker thread.
-#if defined(__HIP_PLATFORM_AMD__) || defined(RAJA_ENABLE_HIP)
-        {
-            hipError_t upload_err = hipMemcpy(
-                d_records,
-                host_records.data(),
-                active_records * sizeof(DeviceTensorRecord),
-                hipMemcpyHostToDevice);
-            if (upload_err != hipSuccess) {
-                throw std::runtime_error(
-                    std::string("[checkers] hipMemcpy failed uploading descriptors to GPU: ")
-                    + hipGetErrorString(upload_err));
-            }
-        }
-#else
-        {
-            cudaError_t upload_err = cudaMemcpy(
-                d_records,
-                host_records.data(),
-                active_records * sizeof(DeviceTensorRecord),
-                cudaMemcpyHostToDevice);
-            if (upload_err != cudaSuccess) {
-                throw std::runtime_error(
-                    std::string("[checkers] cudaMemcpy failed uploading descriptors to GPU: ")
-                    + cudaGetErrorString(upload_err));
-            }
-        }
-#endif
-
-        // Pre-flight sync: catch any GPU error from initialize_context before
-        // launching analysis kernels so the error is reported clearly rather
-        // than as a silent hang inside a later hipDeviceSynchronize.
-        sync_or_throw("preflight", static_cast<size_t>(-1), "");
-
-        const auto start = std::chrono::steady_clock::now();
-
-        // 1. Histograms & Moments
-        // Single batched launch: all tensors submitted in one call, one block each.
-        // The GPU schedules all blocks concurrently; dtype is dispatched per-record
-        // inside tensor_stats_kernel, so mixed fp16/fp32 batches are handled correctly.
-        const auto hist_start = std::chrono::steady_clock::now();
-        if (debug_record_sync) {
-            for (size_t i = 0; i < active_records; ++i) {
-                const DataType dtype = static_cast<DataType>(host_records[i].data_type);
-                analyzer.launch_tensor_analysis(d_records + i, 1, dtype, nullptr);
-                sync_or_throw("hist", i, mgr.get_name_from_index(i));
-            }
-        } else {
-            analyzer.launch_tensor_analysis(d_records, active_records, DataType::Unknown, nullptr);
-            sync_or_throw("hist_batch", static_cast<size_t>(-1), "");
-        }
-        const double hist_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - hist_start).count();
-
-        // 2. Finalize
-        const auto fin_start = std::chrono::steady_clock::now();
-        if (debug_record_sync) {
-            for (size_t i = 0; i < active_records; ++i) {
-                analyzer.finalize_statistics(d_records + i, 1);
-                sync_or_throw("finalize", i, mgr.get_name_from_index(i));
-            }
-        } else {
-            analyzer.finalize_statistics(d_records, active_records);
-            sync_or_throw("finalize_batch", static_cast<size_t>(-1), "");
-        }
-        const double fin_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - fin_start).count();
-
-        // 3. Fingerprints
-        const auto fing_start = std::chrono::steady_clock::now();
-        if (debug_record_sync) {
-            for (size_t i = 0; i < active_records; ++i) {
-                analyzer.compute_fingerprints(d_records + i, 1);
-                sync_or_throw("fingerprint", i, mgr.get_name_from_index(i));
-            }
-        } else {
-            analyzer.compute_fingerprints(d_records, active_records);
-            sync_or_throw("fingerprint_batch", static_cast<size_t>(-1), "");
-        }
-        const double fing_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - fing_start).count();
-
-        // 4. Copy fingerprints from GPU to CPU fingerprint_stage_ so weight
-        //    computation can read them without accessing device memory on host.
-        {
-            auto& fp_cpu = mgr.get_fingerprints_mut();
-            fp_cpu.resize(active_records);
-            const auto& hr = mgr.host_records();
-            for (size_t i = 0; i < active_records; ++i) {
-                if (hr[i].d_fingerprint) {
-                    TensorFingerprint tmp{};
-#if defined(__HIP_PLATFORM_AMD__) || defined(RAJA_ENABLE_HIP)
-                    hipError_t copy_err = hipMemcpy(&tmp, hr[i].d_fingerprint,
-                              sizeof(TensorFingerprint), hipMemcpyDeviceToHost);
-                    if (copy_err != hipSuccess) {
-                        logger->log_message("[checkers] fingerprint copy failed index="
-                            + std::to_string(i) + " error=" + hipGetErrorString(copy_err));
-                    }
-#else
-                    cudaError_t copy_err = cudaMemcpy(&tmp, hr[i].d_fingerprint,
-                               sizeof(TensorFingerprint), cudaMemcpyDeviceToHost);
-                    if (copy_err != cudaSuccess) {
-                        logger->log_message("[checkers] fingerprint copy failed index="
-                            + std::to_string(i) + " error=" + cudaGetErrorString(copy_err));
-                    }
-#endif
-                    fp_cpu[i].values[0] = static_cast<double>(tmp.values[0]);
-                    fp_cpu[i].values[1] = static_cast<double>(tmp.values[1]);
-                    fp_cpu[i].values[2] = static_cast<double>(tmp.values[2]);
-                    fp_cpu[i].values[3] = static_cast<double>(tmp.values[3]);
-                    fp_cpu[i].values[4] = static_cast<double>(tmp.values[4]);
-                } else {
-                    fp_cpu[i] = Fingerprint{};
-                }
-            }
-        }
-
-        // 5. Compute importance-weighted fingerprint weights from cross-category variance.
-        const auto weight_start = std::chrono::steady_clock::now();
-        analyzer.compute_fingerprint_weights(mgr, d_records, active_records, logger);
-        const double weight_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - weight_start).count();
-
-        // 6. Apply weights to the fingerprint values on GPU.
-        const auto apply_start = std::chrono::steady_clock::now();
-        analyzer.apply_fingerprint_weights(d_records, active_records, nullptr);
-        sync_or_throw("apply_fingerprint_weights", static_cast<size_t>(-1), "");
-        const double apply_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - apply_start).count();
-        
-        logger->log_message("[checkers] building fingerprint KNN clusters");
-
-        const auto knn_start = std::chrono::steady_clock::now();
-        analyzer.set_logger(logger);
-        analyzer.build_knn_clusters(d_records, active_records, 4, nullptr);
-        sync_or_throw("knn_clusters", static_cast<size_t>(-1), "");
-        const double knn_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - knn_start).count();
-
-        const double total_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-
-        // Log the timing
-        logger->log_message("[TIMING] analyze_histograms_ms=" + std::to_string(hist_ms));
-        logger->log_message("[TIMING] analyze_finalize_ms=" + std::to_string(fin_ms));
-        logger->log_message("[TIMING] analyze_fingerprints_ms=" + std::to_string(fing_ms));
-        logger->log_message("[TIMING] analyze_fingerprint_weights_ms=" + std::to_string(weight_ms));
-        logger->log_message("[TIMING] analyze_apply_weights_ms=" + std::to_string(apply_ms));
-        logger->log_message("[TIMING] analyze_knn_clusters_ms=" + std::to_string(knn_ms));
-        logger->log_message("[TIMING] analyze_total_ms=" + std::to_string(total_ms));
-
-    } catch (const std::exception& e) {
-        // Print to stderr so the cluster manager captures it
-        std::cerr << "[CHECKERS CRITICAL ERROR] " << e.what() << std::endl;
-        throw; // Re-throw to inform Python
-    }
-}
-
-void compress_and_save(const std::string& output_path) {
-    try {
-        const auto total_t0 = std::chrono::steady_clock::now();
-
         auto& mgr = MemoryManager::instance();
         auto logger = mgr.get_logger();
-
         if (!logger) {
             throw std::runtime_error("Context not initialized: call initialize_context first.");
         }
 
-        mgr.report_memory_usage();
+        const uint32_t mask = targets_from_object(targets);
 
-        logger->log_message("[checkers] compress_and_save begin output=" + output_path);
-
-        // ---- Consume cluster assignments written by TensorAnalyzer::build_knn_clusters ----
-        const ClusterInfo& clusters = mgr.get_cluster_info();
-
-        size_t n_clusters  = 0;
-        size_t n_singletons = 0;
-        for (const auto& kv : clusters.tensor_to_cluster) {
-            if (kv.second == -1) ++n_singletons;
-            else                 n_clusters = std::max(n_clusters, (size_t)(kv.second + 1));
+        // error_bound: a float applies to every stream; a dict keys per stream
+        // name ("model_state"/"master_weights"/"exp_avg"/"exp_avg_sq") with an
+        // optional "default" for the rest.
+        std::array<double, tracked_tensor_category_count> ebs{};
+        ebs.fill(0.0);
+        // given[c]: the caller named this stream's bound explicitly (dict key or
+        // a single float).  allow_lossless only accepts an explicit 0.0, so a
+        // stream missing from the dict is still an error, as before.
+        std::array<bool, tracked_tensor_category_count> given{};
+        given.fill(false);
+        if (py::isinstance<py::dict>(error_bound)) {
+            py::dict d = error_bound.cast<py::dict>();
+            const double def = d.contains("default") ? d["default"].cast<double>() : -1.0;
+            for (int c = 0; c < static_cast<int>(tracked_tensor_category_count); ++c) {
+                const char* nm = tensor_category_name(static_cast<TensorCategory>(c));
+                if (d.contains(nm))      { ebs[c] = d[py::str(nm)].cast<double>(); given[c] = true; }
+                else if (def > 0.0)      ebs[c] = def;
+            }
+        } else {
+            const double v = error_bound.cast<double>();
+            ebs.fill(v);
+            given.fill(true);
         }
-        logger->log_message("[ANS] using_knn_clusters=" + std::to_string(n_clusters) +
-                            " singletons=" + std::to_string(n_singletons));
+        for (int c = 0; c < static_cast<int>(tracked_tensor_category_count); ++c) {
+            // allow_lossless: an explicit 0.0 selects the compressor's existing
+            // no-bound path (raw + zstd, CodecId::RawZstd) for that stream.
+            if (allow_lossless && given[c] && ebs[c] == 0.0) continue;
+            if ((mask & (1u << c)) && !(ebs[c] > 0.0))
+                throw std::runtime_error(std::string("compress_and_save: no error_bound for targeted "
+                    "stream '") + tensor_category_name(static_cast<TensorCategory>(c)) +
+                    "' (pass a float, or a dict with that key or \"default\")");
+        }
 
-        // ---- Determine worker count: one per CPU core, capped at 8 ----
-        const size_t hw_threads = std::max<size_t>(1,
-            static_cast<size_t>(std::thread::hardware_concurrency()));
-        const size_t n_workers  = std::min<size_t>(hw_threads, 8u);
+        {
+            std::string dbg = "[checkers] compress_and_save begin output=" + output_dir +
+                              " targets=" + std::to_string(mask) +
+                              " blocking=" + std::to_string(blocking) + " error_bounds=";
+            for (int c = 0; c < static_cast<int>(tracked_tensor_category_count); ++c)
+                dbg += std::string(tensor_category_name(static_cast<TensorCategory>(c))) + ":" +
+                       std::to_string(ebs[c]) + " ";
+            logger->log_message(dbg);
+        }
 
-        // ---- Compress and save all tensors ----
-        ANSCompressor compressor(logger, n_workers);
-        compressor.compress_and_save_all(clusters, mgr, output_path);
-
-        const double total_ms = std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - total_t0).count();
-        logger->log_message("[TIMING] compress_and_save_wall_ms=" + std::to_string(total_ms));
+        CompressionMetrics m;
+        {
+            py::gil_scoped_release release;
+            m = CheckpointCompressor::instance().run(mgr, output_dir, ebs, mask, blocking);
+        }
+        return metrics_to_pydict(m);
 
     } catch (const std::exception& e) {
         std::cerr << "[CHECKERS CRITICAL ERROR] compress_and_save: " << e.what() << std::endl;
@@ -1298,4 +1123,59 @@ void compress_and_save(const std::string& output_path) {
     }
 }
 
+// ------------------------------------------------------------------ //
+py::dict checkpoint_join() {
+    CompressionMetrics m;
+    {
+        py::gil_scoped_release release;
+        m = CheckpointCompressor::instance().join();
+    }
+    return metrics_to_pydict(m);
 }
+
+// ------------------------------------------------------------------ //
+py::dict restart_from_checkpoint(py::object         model_engine,
+                                 const std::string& input_dir,
+                                 py::object         optimizer,
+                                 py::object         targets) {
+    try {
+        const int global_rank = extract_rank(model_engine, "global_rank", "RANK");
+        const int local_rank  = extract_rank(model_engine, "local_rank",  "LOCAL_RANK");
+
+        auto& mgr = MemoryManager::instance();
+        std::shared_ptr<RankLogger> logger = mgr.get_logger();
+        if (!logger) {
+            logger = RankLogger::create(global_rank, local_rank);
+            mgr.set_logger(logger);
+        }
+
+        // Ensure the registry holds live destination pointers even if this
+        // process never called initialize_context.
+        if (mgr.collect_tensors(static_cast<uint32_t>(CompressTargets::All)).empty()) {
+            mgr.reset();
+            mgr.set_logger(logger);
+            const size_t skipped = run_discovery(model_engine, optimizer, mgr, logger, global_rank);
+            mgr.set_skipped_count(skipped);
+        }
+
+        const uint32_t mask = targets_from_object(targets);
+        logger->log_message("[checkers] restart_from_checkpoint input=" + input_dir +
+                            " targets=" + std::to_string(mask));
+        return restart_apply(mgr, input_dir, mask, logger, global_rank);
+
+    } catch (const std::exception& e) {
+        std::cerr << "[CHECKERS CRITICAL ERROR] restart_from_checkpoint: " << e.what() << std::endl;
+        throw;
+    }
+}
+
+// ------------------------------------------------------------------ //
+void shutdown() {
+    // Runs via Python atexit (GIL held, interpreter still alive).  Joining the
+    // background finalizer and dropping held py::object tensor refs here avoids
+    // doing either from a static destructor after Py_Finalize.
+    try { CheckpointCompressor::instance().reset(); } catch (...) {}
+    try { MemoryManager::instance().reset();        } catch (...) {}
+}
+
+} // namespace checkers

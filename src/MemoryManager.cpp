@@ -63,6 +63,7 @@ void MemoryManager::reset() {
     total_allocation_ms_ = 0.0;
     total_kernel_ms_ = 0.0;
     param_registry_.clear();
+    lifetime_guard_.clear();
     fingerprint_stage_.clear();
     logger_.reset();
 }
@@ -271,6 +272,79 @@ void MemoryManager::note_discovery(const TensorMetadata& meta, double discovery_
 
 void MemoryManager::flush_pipeline() {
     finalize_pipeline();
+}
+
+// ------------------------------------------------------------------ //
+//  Direct registration (analysis-free path used by the compressor)
+// ------------------------------------------------------------------ //
+void MemoryManager::register_shard_tensor(const std::string& name,
+                                          void*              device_ptr,
+                                          size_t             byte_size,
+                                          TensorMetadata     meta) {
+    meta.name = name;
+    if (meta.element_size == 0) {
+        meta.element_size = dtype_element_size(meta.data_type);
+    }
+    if (meta.element_size > 0) {
+        meta.num_elements = byte_size / meta.element_size;
+    }
+    meta.byte_size = byte_size;
+
+    if (meta.strides.empty() && !meta.shape.empty()) {
+        meta.strides.resize(meta.shape.size());
+        meta.strides.back() = 1;
+        for (int i = static_cast<int>(meta.shape.size()) - 2; i >= 0; --i) {
+            meta.strides[i] = meta.strides[i + 1] * static_cast<ptrdiff_t>(meta.shape[i + 1]);
+        }
+    }
+    meta.contiguity = meta.shape.empty() ? Contiguity::Scalar : Contiguity::Contiguous;
+
+    const DataType dtype        = meta.data_type;
+    const size_t   num_elements = meta.num_elements;
+
+    std::unique_lock lock(registry_mutex_);
+    auto resource = std::make_unique<TensorResource>(
+        device_ptr, byte_size, std::move(meta), device_allocator_);
+    registry_[name] = std::move(resource);
+    ordered_names_.push_back(name);
+
+    DeviceTensorRecord rec{};
+    rec.d_ptr        = device_ptr;
+    rec.num_elements = num_elements;
+    rec.data_type    = static_cast<uint8_t>(dtype);
+    rec.contiguity   = static_cast<uint8_t>(Contiguity::Contiguous);
+    global_host_records_.push_back(rec);
+    record_count_ = global_host_records_.size();
+}
+
+std::vector<ShardTensor> MemoryManager::collect_tensors(uint32_t category_mask) const {
+    std::shared_lock lock(registry_mutex_);
+
+    std::vector<std::string> names(ordered_names_.begin(), ordered_names_.end());
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+
+    std::vector<ShardTensor> out;
+    out.reserve(names.size());
+    for (const auto& n : names) {
+        auto it = registry_.find(n);
+        if (it == registry_.end()) continue;
+        const TensorResource& tr = *it->second;
+        const TensorMetadata& m  = tr.get_meta();
+        const uint32_t bit = 1u << tensor_category_index(m.category);
+        if ((category_mask & bit) == 0u) continue;
+
+        ShardTensor st;
+        st.name         = n;
+        st.device_ptr   = tr.get_ptr();
+        st.byte_size    = tr.get_byte_size();
+        st.num_elements = m.num_elements;
+        st.dtype        = m.data_type;
+        st.category     = m.category;
+        st.shape        = m.shape;
+        out.push_back(std::move(st));
+    }
+    return out;
 }
 
 void MemoryManager::worker_loop() {

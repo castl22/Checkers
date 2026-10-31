@@ -97,6 +97,22 @@ struct ClusterInfo {
 };
 
 // ------------------------------------------------------------------ //
+//  ShardTensor
+//  Lean view of one registered tensor, handed to the checkpoint
+//  compressor.  device_ptr is a BORROWED pointer into live framework
+//  storage -- valid only until the framework frees / reshapes it.
+// ------------------------------------------------------------------ //
+struct ShardTensor {
+    std::string         name;
+    void*               device_ptr   = nullptr;
+    size_t              byte_size     = 0;
+    size_t              num_elements  = 0;
+    DataType            dtype         = DataType::Float32;
+    TensorCategory      category      = TensorCategory::Unknown;
+    std::vector<size_t> shape;
+};
+
+// ------------------------------------------------------------------ //
 //  MemoryManager
 // ------------------------------------------------------------------ //
 class MemoryManager {
@@ -122,6 +138,20 @@ public:
 
     // Forces immediate execution of any trailing, unsubmitted tensors left in the batch queue.
     void flush_pipeline();
+
+    // ---- Direct (analysis-free) registration ---- //
+    // Synchronous, no worker threads, no analysis slabs.  This is the path
+    // used by the online checkpoint compressor: it just needs the borrowed
+    // device pointer + shape/dtype/category on record.
+    void register_shard_tensor(const std::string& name,
+                               void*              device_ptr,
+                               size_t             byte_size,
+                               TensorMetadata     meta);
+
+    // Snapshot of every registered tensor whose category bit is set in
+    // category_mask (bit i == 1u << tensor_category_index(category)).
+    // Returned in stable sorted-name order.
+    std::vector<ShardTensor> collect_tensors(uint32_t category_mask) const;
 
     // Remove a tensor from tracking (does NOT free the original tensor data).
     void untrack_tensor(const std::string& name);
@@ -152,6 +182,10 @@ public:
     void set_default_histogram_bins(size_t bins) { default_histogram_bins_ = bins; }
     void set_alignment_bytes(size_t align)        { alignment_bytes_ = align; }
     void build_global_descriptor_array();
+    // Holds Python tensor objects alive for the lifetime of the context so the
+    // borrowed device pointers registered above stay mapped.  Cleared by reset().
+    std::vector<py::object>& lifetime_guard() { return lifetime_guard_; }
+
     void register_param(const std::string& name,
                         py::object param,
                         bool allow_pointer_refresh = true);
@@ -259,6 +293,7 @@ private:
     };
 
     std::unordered_map<std::string, ParamBinding> param_registry_;
+    std::vector<py::object> lifetime_guard_;
     std::vector<Fingerprint> fingerprint_stage_;
     Fingerprint* d_fingerprint_buffer_ = nullptr;
     size_t fingerprint_capacity_ = 0;
