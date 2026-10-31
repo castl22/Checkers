@@ -1161,7 +1161,32 @@ py::dict restart_from_checkpoint(py::object         model_engine,
         const uint32_t mask = targets_from_object(targets);
         logger->log_message("[checkers] restart_from_checkpoint input=" + input_dir +
                             " targets=" + std::to_string(mask));
-        return restart_apply(mgr, input_dir, mask, logger, global_rank);
+        py::dict out = restart_apply(mgr, input_dir, mask, logger, global_rank);
+
+        // ZeRO-3 keeps a FULL copy of every persistent parameter (small ones,
+        // below stage3_param_persistence_threshold) and the forward pass reads
+        // that copy, not the partition restart_apply just refilled.  Rebuild it
+        // from the restored partitions exactly as DeepSpeed's own load path
+        // does: partition() frees the stale full copy (it does not touch
+        // ds_tensor), all_gather() rebuilds it -- _all_gather skips params that
+        // are still AVAILABLE, so the partition step is required.  Collective.
+        int64_t n_persist = 0;
+        if (mask & static_cast<uint32_t>(CompressTargets::ModelState)) {
+            py::object opt = optimizer.is_none() && py::hasattr(model_engine, "optimizer")
+                                 ? model_engine.attr("optimizer") : optimizer;
+            if (!opt.is_none() && py::hasattr(opt, "persistent_parameters")) {
+                py::list persist = opt.attr("persistent_parameters");
+                n_persist = static_cast<int64_t>(py::len(persist));
+                if (n_persist > 0) {
+                    persist[0].attr("partition")(persist);
+                    persist[0].attr("all_gather")(persist);
+                }
+            }
+        }
+        out["persistent_refreshed"] = n_persist;
+        logger->log_message("[checkers] restart: rebuilt " + std::to_string(n_persist) +
+                            " persistent parameters from restored partitions");
+        return out;
 
     } catch (const std::exception& e) {
         std::cerr << "[CHECKERS CRITICAL ERROR] restart_from_checkpoint: " << e.what() << std::endl;

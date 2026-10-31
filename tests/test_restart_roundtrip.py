@@ -82,6 +82,8 @@ def poison(engine, opt):
     st = opt.optimizer.state
     for _, p in engine.module.named_parameters():
         p.ds_tensor.data.fill_(float("nan"))
+        if getattr(p, "ds_persist", False):
+            p.data.fill_(float("nan"))      # the full copy the forward pass reads
     for flat in opt.fp32_partitioned_groups_flat:
         flat.data.fill_(float("nan"))
         st[flat]["exp_avg"].fill_(float("nan"))
@@ -144,6 +146,18 @@ def main():
         r = rest["model_state"][n]
         check(torch.isfinite(r).all().item() and rel_l2(t, r) <= REL_PG,
               f"model_state    {n:10s} rel_l2={rel_l2(t, r):.4f} (<= {REL_PG})")
+
+    # ZeRO-3 persistent params: the forward pass reads the full copy, so after a
+    # restore it must equal the RESTORED partition (world size 1: partition =
+    # whole param), not whatever was there before (poisoned to NaN above).
+    persist = [(n, p) for n, p in engine.module.named_parameters() if getattr(p, "ds_persist", False)]
+    check(len(persist) > 0, f"persistent params present: {[n for n, _ in persist]}")
+    for n, p in persist:
+        full = p.data.detach().flatten().float()
+        part = p.ds_tensor.detach().flatten().float()[:full.numel()]
+        check(torch.equal(full, part),
+              f"persistent     {n:10s} forward copy == restored partition: {torch.equal(full, part)}"
+              f" (finite={torch.isfinite(full).all().item()})")
     for gi, lay in enumerate(orig["layout"]):
         for n, off, k in lay:
             sl = slice(off, off + k)
