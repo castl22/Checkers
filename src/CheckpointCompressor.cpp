@@ -337,9 +337,11 @@ bool CheckpointCompressor::codec_pergroup(WorkItem& wi, StagingPool::Slot& sl,
             return false;
         }
 
-        // NOTE on ordering: scratch_.q now holds ZIGZAG codes (quantize_fused
-        // emits them directly), so the packer runs first and the SNR check --
-        // which wants the signed codes -- un-zigzags afterwards.
+        // scratch_.q holds ZIGZAG codes (quantize_fused emits them directly).
+        // The SNR check wants signed codes, so it un-zigzags in place and must
+        // re-zigzag before the packer below reads the same buffer (as
+        // codec_tt_eq does).  Without that, measure_snr=true wrote signed codes
+        // that the decoder's unzigzag turned into garbage.
         if (cfg_.measure_snr) {
             double sq = 0.0, sig = 0.0;
             codec::unzigzag_inplace(reinterpret_cast<uint16_t*>(scratch_.q), n, cs);
@@ -358,6 +360,7 @@ bool CheckpointCompressor::codec_pergroup(WorkItem& wi, StagingPool::Slot& sl,
             }
             wi.sq_err = sq;
             wi.signal = sig;
+            codec::zigzag_inplace(scratch_.q, n, cs);   // restore for the packer
         }
 
         if (h_over) {
