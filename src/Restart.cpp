@@ -9,6 +9,7 @@
 #include "checkers/ZstdUtil.hpp"
 #include "checkers/logging.hpp"
 
+#include <algorithm>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -27,14 +28,32 @@ namespace checkers {
 
 namespace {
 
+// Streaming restore (2026-11-05): only the header and index are read up
+// front; each tensor's payload + aux are read just before it is decoded, into
+// one reused buffer.  (Before, the whole data section -- 14 GB per rank for a
+// lossless stream -- was read into memory first.)
 struct LoadedStream {
     CchHeader                  header{};
     std::vector<CchIndexEntry> index;
-    std::vector<uint8_t>       data;   // raw data section (payloads + aux concatenated)
+    std::ifstream              f;
+    uint64_t                   data_beg = 0;   // file offset of the data section
+    uint64_t                   data_len = 0;   // its length
 };
 
+// read [off, off + n) of the data section into buf
+bool read_data(LoadedStream& ls, uint64_t off, uint64_t n, std::vector<uint8_t>& buf) {
+    if (off + n > ls.data_len) return false;
+    buf.resize(static_cast<size_t>(n));
+    if (n == 0) return true;
+    ls.f.clear();
+    ls.f.seekg(static_cast<std::streamoff>(ls.data_beg + off), std::ios::beg);
+    ls.f.read(reinterpret_cast<char*>(buf.data()), static_cast<std::streamsize>(n));
+    return static_cast<bool>(ls.f);
+}
+
 bool read_stream_file(const std::string& path, LoadedStream& out, std::string& err) {
-    std::ifstream f(path, std::ios::binary);
+    out.f.open(path, std::ios::binary);
+    std::ifstream& f = out.f;
     if (!f) { err = "cannot open"; return false; }
 
     f.read(reinterpret_cast<char*>(&out.header), sizeof(CchHeader));
@@ -59,11 +78,8 @@ bool read_stream_file(const std::string& path, LoadedStream& out, std::string& e
     const std::streamoff data_beg = static_cast<std::streamoff>(out.header.data_offset);
     const std::streamoff data_end = (idx_beg > data_beg) ? idx_beg : file_end;
     if (data_end < data_beg) { err = "truncated data"; return false; }
-    out.data.resize(static_cast<size_t>(data_end - data_beg));
-    f.seekg(data_beg, std::ios::beg);
-    f.read(reinterpret_cast<char*>(out.data.data()),
-           static_cast<std::streamsize>(out.data.size()));
-    if (!f) { err = "short read on data section"; return false; }
+    out.data_beg = static_cast<uint64_t>(data_beg);
+    out.data_len = static_cast<uint64_t>(data_end - data_beg);
     return true;
 }
 
@@ -489,6 +505,7 @@ py::dict restart_apply(MemoryManager&              mgr,
         for (const auto& e : ls.index) by_name.emplace(std::string(e.name), &e);
 
         uint64_t n_ok = 0;
+        std::vector<uint8_t> buf;          // this tensor's payload + aux, reused
         for (const auto& stv : mgr.collect_tensors(bit)) {
             auto it = by_name.find(stv.name);
             if (it == by_name.end()) {
@@ -496,14 +513,21 @@ py::dict restart_apply(MemoryManager&              mgr,
                 continue;
             }
             const CchIndexEntry& e = *it->second;
-            if (e.data_offset + e.data_size > ls.data.size() ||
-                e.aux_offset + e.aux_size > ls.data.size()) {
+            // payload and aux are adjacent in practice; read the span covering both
+            const uint64_t lo = e.aux_size ? std::min(e.data_offset, e.aux_offset) : e.data_offset;
+            const uint64_t hi = e.aux_size ? std::max(e.data_offset + e.data_size, e.aux_offset + e.aux_size)
+                                           : e.data_offset + e.data_size;
+            if (hi > ls.data_len) {
                 warnings.append(py::str(std::string(sname) + ": '" + stv.name +
                                         "' payload/aux past the end of the data section"));
                 continue;
             }
-            const uint8_t* payload = ls.data.data() + e.data_offset;
-            const uint8_t* aux     = ls.data.data() + e.aux_offset;
+            if (!read_data(ls, lo, hi - lo, buf)) {
+                warnings.append(py::str(std::string(sname) + ": '" + stv.name + "' short read"));
+                continue;
+            }
+            const uint8_t* payload = buf.data() + (e.data_offset - lo);
+            const uint8_t* aux     = buf.data() + (e.aux_size ? e.aux_offset - lo : 0);
 
             std::string werr;
             try {
