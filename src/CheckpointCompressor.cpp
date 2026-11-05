@@ -9,6 +9,7 @@
 #include "checkers/ZstdUtil.hpp"
 #include "checkers/logging.hpp"
 
+#include <cerrno>
 #include <cfloat>
 
 #include <pybind11/pybind11.h>
@@ -107,6 +108,7 @@ struct CheckpointCompressor::WorkItem {
     double               d2h_ms    = 0.0;
     double               compute_ms = 0.0;
     bool                 done      = false;
+    std::string          error;                   // why done == false (worker error / skipped)
 };
 
 namespace {
@@ -733,9 +735,15 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
                                              const std::array<double, tracked_tensor_category_count>& error_bounds,
                                              uint32_t           targets,
                                              bool               blocking) {
-    // finish any prior non-blocking checkpoint before starting a new one
+    // finish any prior non-blocking checkpoint before starting a new one;
+    // if it failed and nobody called join(), fail here rather than lose it
     if (finalizer_.joinable()) finalizer_.join();
     pending_.store(false);
+    if (finalize_error_) {
+        std::exception_ptr e = finalize_error_;
+        finalize_error_ = nullptr;
+        std::rethrow_exception(e);
+    }
 
     const auto t0 = clock_t_::now();
 
@@ -816,6 +824,12 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
                     CK_GPU_CHECK(gpu::EventSynchronize(sl.copied));
                     const auto tc0 = clock_t_::now();
 
+                    // TEST ONLY (tests/test_save_failures.py): fail every tensor whose
+                    // name contains $CHECKERS_TEST_FAIL_TENSOR.  Unset = no effect.
+                    if (const char* inj = std::getenv("CHECKERS_TEST_FAIL_TENSOR"))
+                        if (*inj && wi.st.name.find(inj) != std::string::npos)
+                            throw std::runtime_error("injected failure (CHECKERS_TEST_FAIL_TENSOR)");
+
                     const double eb = (wi.cat_index >= 0 &&
                                        wi.cat_index < static_cast<int>(tracked_tensor_category_count))
                                           ? ebs[wi.cat_index] : 0.0;
@@ -867,7 +881,8 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
                 } catch (const std::exception& e) {
                     if (logger_) logger_->log_message("[compressor] worker error on '" +
                         wi.st.name + "': " + e.what());
-                    wi.done = false;
+                    wi.done  = false;
+                    wi.error = std::string("worker error: ") + e.what();
                 }
                 pool_.give_back(wi.slot);
             }
@@ -882,7 +897,8 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
             if (logger_) logger_->log_message("[compressor] tensor '" + wi.st.name +
                 "' (" + std::to_string(wi.st.byte_size) + " B) exceeds slot_bytes " +
                 std::to_string(pool_.slot_bytes()) + " -- skipping");
-            wi.done = false;
+            wi.done  = false;
+            wi.error = "exceeds slot_bytes " + std::to_string(pool_.slot_bytes());
             continue;
         }
 
@@ -894,7 +910,8 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
             (void)gpu::LastError();
             if (logger_) logger_->log_message("[compressor] stale device pointer for '" +
                 wi.st.name + "' -- skipping");
-            wi.done = false;
+            wi.done  = false;
+            wi.error = "stale device pointer";
             pool_.give_back(slot);
             continue;
         }
@@ -940,6 +957,9 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
             finalize_and_store(work, sm, output_dir);
         } catch (const std::exception& e) {
             if (logger_) logger_->log_message(std::string("[compressor] finalize error: ") + e.what());
+            finalize_error_ = std::current_exception();   // raised by join() / the next run()
+        } catch (...) {
+            finalize_error_ = std::current_exception();
         }
         sm->wall_ms   = ms_since(t0);
         sm->pending   = false;
@@ -955,6 +975,11 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
 CompressionMetrics CheckpointCompressor::join() {
     if (finalizer_.joinable()) finalizer_.join();
     pending_.store(false);
+    if (finalize_error_) {
+        std::exception_ptr e = finalize_error_;
+        finalize_error_ = nullptr;
+        std::rethrow_exception(e);
+    }
     return last_metrics_;
 }
 
@@ -971,14 +996,58 @@ void CheckpointCompressor::finalize_and_store(
     std::error_code ec;
     fs::create_directories(output_dir, ec);
 
+    // Every collected tensor must have been compressed.  Until 2026-11-05 a
+    // tensor whose worker failed (e.g. std::bad_alloc) or that was skipped was
+    // silently left out: the stream file was written without it, self-consistent,
+    // and the save reported success (exp1 control_s3 step_100: 23-36 exp_avg_sq
+    // tensors missing on 3 ranks, found only at restore).  Now: no file is
+    // written for this rank and the save throws.
+    std::array<uint32_t, tracked_tensor_category_count> n_expected{};
+    {
+        size_t n_failed = 0;
+        std::string first;
+        for (const WorkItem& wi : *work) {
+            const int c = wi.cat_index;
+            if (c >= 0 && c < static_cast<int>(tracked_tensor_category_count)) n_expected[c]++;
+            if (wi.done) continue;
+            if (n_failed++ < 3)
+                first += (first.empty() ? "" : "; ") + wi.st.name + ": " +
+                         (wi.error.empty() ? std::string("not compressed") : wi.error);
+        }
+        if (n_failed) {
+            const std::string msg = "[compressor] save FAILED: " + std::to_string(n_failed) + " of " +
+                std::to_string(work->size()) + " tensors were not compressed (" + first +
+                (n_failed > 3 ? "; ..." : "") + "); nothing written to " + output_dir +
+                " for rank " + std::to_string(global_rank_);
+            if (logger_) logger_->log_message(msg);
+            throw std::runtime_error(msg);
+        }
+    }
+
     std::array<std::vector<size_t>, tracked_tensor_category_count> by_cat;
     for (size_t i = 0; i < work->size(); ++i) {
-        WorkItem& wi = (*work)[i];
-        if (!wi.done) continue;
-        const int c = wi.cat_index;
+        const int c = (*work)[i].cat_index;
         if (c >= 0 && c < static_cast<int>(tracked_tensor_category_count))
             by_cat[c].push_back(i);
     }
+
+    // Every write and the close are checked (2026-11-05): a short write
+    // (full /dev/shm, Lustre error) used to pass silently.
+    auto write_or_throw = [](std::ofstream& f, const void* p, size_t n,
+                             const std::string& path, const char* what) {
+        if (n == 0) return;
+        errno = 0;
+        f.write(static_cast<const char*>(p), static_cast<std::streamsize>(n));
+        if (!f) throw std::runtime_error("[compressor] write failed (" + std::string(what) + ", " +
+                                         std::to_string(n) + " B) to " + path + ": " +
+                                         (errno ? std::strerror(errno) : "stream error"));
+    };
+    auto close_or_throw = [](std::ofstream& f, const std::string& path) {
+        errno = 0;
+        f.close();
+        if (f.fail()) throw std::runtime_error("[compressor] close failed for " + path + ": " +
+                                               (errno ? std::strerror(errno) : "stream error"));
+    };
 
     const uint32_t rank_u = static_cast<uint32_t>(global_rank_ < 0 ? 0 : global_rank_);
     char rankbuf[16];
@@ -1067,20 +1136,25 @@ void CheckpointCompressor::finalize_and_store(
         h.total_payload_bytes = tot_pay;
 
         std::ofstream f(path, std::ios::binary | std::ios::trunc);
-        if (!f) throw std::runtime_error("[compressor] cannot open " + path);
-        f.write(reinterpret_cast<const char*>(&h), sizeof(h));
-        f.write(reinterpret_cast<const char*>(index.data()),
-                static_cast<std::streamsize>(index.size() * sizeof(CchIndexEntry)));
+        if (!f) throw std::runtime_error("[compressor] cannot open " + path + ": " + std::strerror(errno));
+        write_or_throw(f, &h, sizeof(h), path, "header");
+        write_or_throw(f, index.data(), index.size() * sizeof(CchIndexEntry), path, "index");
         for (uint32_t k = 0; k < nT; ++k) {
             WorkItem& wi = (*work)[by_cat[c][k]];
-            if (!wi.payload.empty())
-                f.write(reinterpret_cast<const char*>(wi.payload.data()),
-                        static_cast<std::streamsize>(wi.payload.size()));
-            if (!wi.aux.empty())
-                f.write(reinterpret_cast<const char*>(wi.aux.data()),
-                        static_cast<std::streamsize>(wi.aux.size()));
+            write_or_throw(f, wi.payload.data(), wi.payload.size(), path, "payload");
+            write_or_throw(f, wi.aux.data(), wi.aux.size(), path, "aux");
         }
-        f.close();
+        close_or_throw(f, path);
+        {
+            // and the file on disk is exactly as long as its header + index say
+            const uint64_t want = h.data_offset + running;
+            std::error_code sec;
+            const uint64_t got = fs::file_size(path, sec);
+            if (sec || got != want)
+                throw std::runtime_error("[compressor] " + path + " is " +
+                    (sec ? "unreadable (" + sec.message() + ")" : std::to_string(got) + " B") +
+                    " after close, header implies " + std::to_string(want) + " B");
+        }
 
         const double io_ms = ms_since(tio0);
         m.per_stream[c].io_ms   += io_ms;
@@ -1106,6 +1180,7 @@ void CheckpointCompressor::finalize_and_store(
         manifest += "\"codec\": \"" + std::string(codec_name) + "\", ";
         manifest += "\"error_bound\": " + fmt_double(m.error_bounds[c]) + ", ";
         manifest += "\"n_tensors\": " + std::to_string(nT) + ", ";
+        manifest += "\"n_expected\": " + std::to_string(n_expected[c]) + ", ";
         manifest += "\"orig_bytes\": " + std::to_string(tot_orig) + ", ";
         manifest += "\"compressed_bytes\": " + std::to_string(tot_pay) + ", ";
         manifest += "\"ratio\": " + fmt_double(ratio) + ", ";
@@ -1117,8 +1192,11 @@ void CheckpointCompressor::finalize_and_store(
 
     manifest += "\n  }\n}\n";
     {
-        std::ofstream mf(output_dir + "/rank_" + rankbuf + "_manifest.json", std::ios::trunc);
-        mf << manifest;
+        const std::string mpath = output_dir + "/rank_" + rankbuf + "_manifest.json";
+        std::ofstream mf(mpath, std::ios::trunc);
+        if (!mf) throw std::runtime_error("[compressor] cannot open " + mpath + ": " + std::strerror(errno));
+        write_or_throw(mf, manifest.data(), manifest.size(), mpath, "manifest");
+        close_or_throw(mf, mpath);
     }
 
     // aggregate over streams

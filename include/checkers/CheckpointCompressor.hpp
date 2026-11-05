@@ -6,6 +6,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -168,6 +169,9 @@ private:
     std::thread                  finalizer_;
     std::atomic<bool>            pending_{false};
     CompressionMetrics           last_metrics_{};
+    // A non-blocking save's failure, raised by the next join() or run()
+    // (2026-11-05: it used to be logged and dropped).
+    std::exception_ptr           finalize_error_;
 };
 
 // Build the nested Python dict from a metrics snapshot (call with the GIL held).

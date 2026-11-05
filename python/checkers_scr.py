@@ -51,7 +51,9 @@ either way.
 from __future__ import annotations
 
 import glob
+import json
 import os
+import struct
 
 import checkers_py
 
@@ -81,6 +83,8 @@ _S = {
     "logical_dir": None, # <prefix>/<name>, the PFS-side name of that window
     "min_snr_db": None,  # optional validity gate, see compress_and_save()
     "singleton": False,  # one independent SCR instance per rank (no PMI)
+    "expected_tensors": None,  # optional {stream: n} or int, checked by _validate
+    "noscr_dir": None,   # SCR off: where the pending non-blocking save writes
 }
 
 # Defaults tuned for a node with /dev/shm as the only cache tier.  Every one of
@@ -207,12 +211,55 @@ def _register_written(routed_dir, logical_dir):
     return written
 
 
+# .cch layout (include/checkers/CheckpointFormat.hpp): CchHeader is 88 bytes,
+# each CchIndexEntry 432, its data/aux offset+size at byte 344.
+_CCH_HDR = struct.Struct("<8I d 6Q")
+_CCH_IDX = 432
+_CCH_MAGIC = 0x31484343
+
+
+def _cch_read(path):
+    """-> (n_tensors, size the header + index imply).  Raises on a bad header."""
+    with open(path, "rb") as f:
+        raw = f.read(_CCH_HDR.size)
+        if len(raw) != _CCH_HDR.size:
+            raise ValueError("header truncated")
+        h = _CCH_HDR.unpack(raw)
+        magic, n_tensors, data_off = h[0], h[6], h[10]
+        if magic != _CCH_MAGIC:
+            raise ValueError("bad magic 0x%08x" % magic)
+        idx = f.read(n_tensors * _CCH_IDX)
+    if len(idx) != n_tensors * _CCH_IDX:
+        raise ValueError("index truncated")
+    end = 0
+    for k in range(n_tensors):
+        do, ds, ao, asz = struct.unpack_from("<4Q", idx, k * _CCH_IDX + 344)
+        end = max(end, do + ds, ao + asz)
+    return n_tensors, data_off + end
+
+
+def _expected_for(stream):
+    exp = _S["expected_tensors"]
+    if isinstance(exp, dict):
+        return exp.get(stream)
+    return exp
+
+
 def _validate(metrics, written):
     """Decide the per-rank ``valid`` flag handed to SCR_Complete_output.
 
     SCR ORs this across ranks: if any rank reports invalid, the dataset is
     rejected and SCR falls back to an older checkpoint.  That makes it the
     right place to enforce "the error bound was actually met".
+
+    Since 2026-11-05 it also checks the files themselves (existence and
+    non-zero size were not enough -- a short write and a stream missing
+    tensors both passed):
+      * the manifest is readable and lists every .cch this rank wrote;
+      * each .cch is exactly as long as its own header + index imply;
+      * each .cch's tensor count equals the manifest's n_tensors and
+        n_expected (the tensors collected for that stream), and the
+        caller's expected count if init(expected_tensors=...) gave one.
     """
     if metrics is None:
         return False, "compress_and_save returned no metrics"
@@ -225,6 +272,36 @@ def _validate(metrics, written):
         if os.path.getsize(path) == 0:
             return False, "empty file " + path
 
+    mpaths = [p for p in written if p.endswith("_manifest.json")]
+    if len(mpaths) != 1:
+        return False, "expected one manifest, found %d" % len(mpaths)
+    try:
+        with open(mpaths[0]) as f:
+            streams = json.load(f)["streams"]
+    except Exception as exc:
+        return False, "unreadable manifest %s (%s)" % (mpaths[0], exc)
+    cch = {os.path.basename(p): p for p in written if p.endswith(".cch")}
+    listed = {v.get("file") for v in streams.values()}
+    for extra in sorted(set(cch) - listed):
+        return False, "%s is not in the manifest" % extra
+    for name, st in sorted(streams.items()):
+        path = cch.get(st.get("file"))
+        if path is None:
+            return False, "stream %s: file %s missing" % (name, st.get("file"))
+        try:
+            n_hdr, need = _cch_read(path)
+        except Exception as exc:
+            return False, "%s: unreadable header (%s)" % (path, exc)
+        size = os.path.getsize(path)
+        if size != need:
+            return False, "%s is %d bytes, its header implies %d (%s)" % (
+                path, size, need, "truncated" if size < need else "too long")
+        for what, want in (("manifest n_tensors", st.get("n_tensors")),
+                           ("manifest n_expected", st.get("n_expected")),
+                           ("expected_tensors", _expected_for(name))):
+            if want is not None and n_hdr != want:
+                return False, "stream %s holds %d tensors, %s is %d" % (name, n_hdr, what, want)
+
     overall = metrics.get("overall", {})
     if overall.get("n_tensors", 0) == 0:
         return False, "no tensors compressed"
@@ -236,6 +313,18 @@ def _validate(metrics, written):
             return False, "snr {:.2f} dB below floor {:.2f} dB".format(snr, floor)
 
     return True, ""
+
+
+def _check_noscr(metrics, out_dir):
+    """SCR off: the same checks as _validate, but a failure raises (there is
+    no SCR valid flag to hand it to)."""
+    written = sorted(glob.glob(os.path.join(out_dir, _rank_glob())))
+    valid, why = _validate(metrics, written)
+    if not valid:
+        raise RuntimeError("checkers_scr: checkpoint in %s failed validation on rank %d: %s"
+                           % (out_dir, _S["rank"], why))
+    metrics["validated"] = True
+    return metrics
 
 
 def _close_output(metrics):
@@ -268,7 +357,7 @@ def _close_output(metrics):
 # --------------------------------------------------------------------------- #
 #  lifecycle
 # --------------------------------------------------------------------------- #
-def init(prefix, enabled=True, min_snr_db=None, **config):
+def init(prefix, enabled=True, min_snr_db=None, expected_tensors=None, **config):
     """Initialize SCR.  Collective over MPI_COMM_WORLD.
 
     Call once, after MPI and torch.distributed are both up and before the
@@ -279,6 +368,10 @@ def init(prefix, enabled=True, min_snr_db=None, **config):
     enabled     False runs the plain Checkers path with no SCR involvement.
     min_snr_db  if set, a lossy checkpoint whose measured SNR falls below this
                 is reported to SCR as invalid rather than silently kept.
+    expected_tensors  optional tensor count per stream, an int (same for every
+                stream, e.g. 291 for a LLaMA-3-8B ZeRO-3 shard) or a dict
+                {stream: n}; a saved stream with any other count is invalid.
+                The manifest's own n_expected is always checked.
     **config    extra SCR_* settings, e.g. SCR_COPY_TYPE="PARTNER".  These
                 must be applied before SCR_Init, which is why they live here.
     """
@@ -286,6 +379,7 @@ def init(prefix, enabled=True, min_snr_db=None, **config):
 
     _S["prefix"] = os.path.abspath(prefix)
     _S["min_snr_db"] = min_snr_db
+    _S["expected_tensors"] = expected_tensors
 
     if not enabled:
         _S["enabled"] = False
@@ -410,10 +504,14 @@ def compress_and_save(name, error_bound, targets="all", blocking=True,
     if not _S["enabled"]:
         out_dir = os.path.join(_S["prefix"], name)
         os.makedirs(out_dir, exist_ok=True)
-        return checkers_py.compress_and_save(
+        metrics = checkers_py.compress_and_save(
             out_dir, error_bound=error_bound, targets=targets,
             blocking=blocking, allow_lossless=allow_lossless,
         )
+        if not blocking:
+            _S["noscr_dir"] = out_dir      # checked by checkpoint_join()
+            return metrics
+        return _check_noscr(metrics, out_dir)
 
     _require_closed("compress_and_save")
 
@@ -455,7 +553,9 @@ def checkpoint_join():
     Collective, because SCR_Complete_output is.
     """
     if not _S["enabled"]:
-        return checkers_py.checkpoint_join()
+        metrics = checkers_py.checkpoint_join()
+        out_dir, _S["noscr_dir"] = _S["noscr_dir"], None
+        return _check_noscr(metrics, out_dir) if out_dir else metrics
 
     if _S["open_name"] is None:
         raise RuntimeError("checkers_scr: checkpoint_join() with no open "
