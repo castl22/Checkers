@@ -512,6 +512,7 @@ bool tt_decompose(const float* A, const TtDims& dims,
     if (!range_finder_fast(h, s, A, (int)n1, cols1, rank_cap, &Qr1, sv1, &l1)) return false;
     const uint32_t r1 = adaptive_rank(sv1, energy_keep, rank_cap);
     out.r1 = r1;
+    if (prof) { prof->sv1 = sv1; prof->r1 = r1; }
     if (!dmalloc((void**)&out.g1, sizeof(float) * (size_t)n1 * r1)) { dfree(Qr1); return false; }
     k_copy_cols<<<grid_for((size_t)n1 * r1, B), B, 0, s>>>(Qr1, n1, (uint32_t)l1, r1, out.g1);
     dfree(Qr1);
@@ -555,6 +556,7 @@ bool tt_decompose(const float* A, const TtDims& dims,
     if (!range_finder(h, s, C.f(), rows2, (int)n3, rank_cap, &Qr2, sv2, &l2)) return false;
     const uint32_t r2 = adaptive_rank(sv2, energy_keep, rank_cap);
     out.r2 = r2;
+    if (prof) { prof->sv2 = sv2; prof->r2 = r2; }
     if (!dmalloc((void**)&out.g2, sizeof(float) * (size_t)rows2 * r2)) { dfree(Qr2); return false; }
     k_copy_cols<<<grid_for((size_t)rows2 * r2, B), B, 0, s>>>(Qr2, (uint32_t)rows2, (uint32_t)l2, r2, out.g2);
     dfree(Qr2);
@@ -659,6 +661,19 @@ size_t tt_blas_workspace_bytes(const TtDims& d, uint32_t cap) {
     return bytes;
 }
 
+bool tt_blas_set_atomics(bool allowed) {
+    auto h = reinterpret_cast<rocblas_handle>(blas_handle());
+    return h && rocblas_set_atomics_mode(h, allowed ? rocblas_atomics_allowed
+                                                    : rocblas_atomics_not_allowed) == rocblas_status_success;
+}
+
+size_t tt_blas_current_workspace() {
+    auto h = reinterpret_cast<rocblas_handle>(blas_handle());
+    size_t b = 0;
+    if (h) (void)rocblas_get_device_memory_size(h, &b);
+    return b;
+}
+
 bool tt_blas_fix_workspace(size_t bytes) {
     auto h = reinterpret_cast<rocblas_handle>(blas_handle());
     if (!h) return false;
@@ -674,6 +689,8 @@ void   tt_set_arena(TtArena*) {}
 size_t tt_arena_bytes(const TtDims&, uint32_t) { return 0; }
 size_t tt_blas_workspace_bytes(const TtDims&, uint32_t) { return 0; }
 bool   tt_blas_fix_workspace(size_t) { return false; }
+bool   tt_blas_set_atomics(bool) { return false; }
+size_t tt_blas_current_workspace() { return 0; }
 bool tt_reconstruct_ws(const TtCores&, float*, float*, void*, gpu::Stream_t) { return false; }
 #endif
 

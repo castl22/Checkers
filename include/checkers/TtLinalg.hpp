@@ -25,6 +25,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "checkers/GpuDefs.hpp"
 
@@ -87,6 +88,11 @@ size_t tt_blas_workspace_bytes(const TtDims& dims, uint32_t rank_cap);
 // now; rocBLAS then never allocates or frees during a GEMM (a GEMM that would
 // need more fails instead).  Returns false on error.
 bool tt_blas_fix_workspace(size_t bytes);
+// Diagnostics (2026-11-05): forbid / allow atomics in rocBLAS kernels (split-K
+// reductions with atomics are not run-to-run deterministic), and the device
+// workspace rocBLAS currently holds.
+bool   tt_blas_set_atomics(bool allowed);
+size_t tt_blas_current_workspace();
 
 // Per-stage timings for tt_decompose, in ms.  tt_decompose is 93% of the
 // exp_avg stream's GPU time, so it gets attributed rather than guessed at.
@@ -97,6 +103,10 @@ struct TtProf {
     double sketch2_ms = 0;   // split-2 range finder on C (power iterations)
     double gemm_g3_ms = 0;   // G3 = G2^T C
     double alloc_ms   = 0;   // hipMalloc/hipFree inside the decomposition
+    // diagnostics (2026-11-05): the sketch singular-value estimates of the two
+    // bonds (descending, up to rank_cap + 8 of them) and the chosen ranks
+    std::vector<double> sv1, sv2;
+    uint32_t r1 = 0, r2 = 0;
 };
 
 // Decompose a zero-padded fp32 device buffer A (exactly dims.padded() elements)

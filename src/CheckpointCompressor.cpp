@@ -264,6 +264,10 @@ void CheckpointCompressor::alloc_tt_scratch(const std::vector<size_t>& lens) {
     scratch_.tt_arena = tt::TtArena{};
     scratch_.tt_arena.base = static_cast<uint8_t*>(p);
     scratch_.tt_arena.cap  = arena;
+    // DIAGNOSTIC knobs (2026-11-05), unset = default:
+    //   CHECKERS_TT_BLAS_WS=managed  leave rocBLAS managing its own memory
+    //   CHECKERS_TT_BLAS_WS=<MB>     fixed workspace of max(query, MB)
+    //   CHECKERS_TT_BLAS_ATOMICS=0   rocblas_atomics_not_allowed
     // Default: a FIXED 256 MB rocBLAS workspace (or the query's figure if
     // larger).  The size query returns 0 B for these shapes, but pinning
     // rocBLAS to that (4 KB) changed its GEMM kernels and left 201 of 1808
@@ -272,10 +276,26 @@ void CheckpointCompressor::alloc_tt_scratch(const std::vector<size_t>& lens) {
     const size_t ws_query = ws;
     ws = std::max(ws, static_cast<size_t>(256) << 20);
     std::string ws_mode = "256 MB default (query said " + std::to_string(ws_query) + " B)";
-    if (!tt::tt_blas_fix_workspace(ws))
-        throw std::runtime_error("[compressor] could not give rocBLAS a fixed workspace of " +
-                                 std::to_string(ws) + " B");
-    if (logger_) logger_->log_message("[compressor] rocBLAS workspace: " + ws_mode);
+    const char* wsenv = std::getenv("CHECKERS_TT_BLAS_WS");
+    if (wsenv && std::string(wsenv) == "managed") {
+        ws_mode = "managed (not fixed)";
+        ws = 0;
+    } else {
+        if (wsenv && *wsenv) {
+            ws = std::max(ws_query, static_cast<size_t>(std::atof(wsenv) * 1048576.0));
+            ws_mode = std::string(wsenv) + " MB requested";
+        }
+        if (!tt::tt_blas_fix_workspace(ws))
+            throw std::runtime_error("[compressor] could not give rocBLAS a fixed workspace of " +
+                                     std::to_string(ws) + " B");
+    }
+    if (const char* at = std::getenv("CHECKERS_TT_BLAS_ATOMICS"); at && *at == '0') {
+        if (!tt::tt_blas_set_atomics(false))
+            throw std::runtime_error("[compressor] rocblas_set_atomics_mode(not_allowed) failed");
+        ws_mode += ", atomics NOT allowed";
+    }
+    if (logger_) logger_->log_message("[compressor] rocBLAS workspace mode: " + ws_mode +
+        ", size now " + std::to_string(tt::tt_blas_current_workspace()) + " B");
     scratch_.tt_blas_ws = ws;
     scratch_.tt_bytes = 2 * scratch_.tt_P_max * sizeof(float) + scratch_.tt_L_max * sizeof(float)
                       + sizeof(float) + scratch_.tt_ce_max * sizeof(uint16_t) + arena;
@@ -618,6 +638,17 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
         tt::tt_set_arena(&scratch_.tt_arena);       // this thread, until cleanup()
         struct ArenaOff { ~ArenaOff() { tt::tt_set_arena(nullptr); } } arena_off;  // also on a throw
 
+        // TEST ONLY: fill every reusable TT buffer with NaN bytes first, so a
+        // read-before-write (relying on fresh memory) shows up as NaN / worse
+        // error.  Unset = no effect.
+        if (const char* poison = std::getenv("CHECKERS_TEST_POISON_TT"); poison && *poison == '1') {
+            CK_GPU_CHECK(gpu::MemsetAsync(scratch_.tt_arena.base, 0xFF, scratch_.tt_arena.cap, cs));
+            CK_GPU_CHECK(gpu::MemsetAsync(scratch_.tt_Ahat, 0xFF, scratch_.tt_P_max * sizeof(float), cs));
+            CK_GPU_CHECK(gpu::MemsetAsync(scratch_.tt_R, 0xFF, scratch_.tt_L_max * sizeof(float), cs));
+            CK_GPU_CHECK(gpu::MemsetAsync(scratch_.tt_core16, 0xFF, scratch_.tt_ce_max * sizeof(uint16_t), cs));
+            CK_GPU_CHECK(gpu::MemsetAsync(scratch_.tt_step, 0xFF, sizeof(float), cs));
+            CK_GPU_CHECK(gpu::StreamSynchronize(cs));
+        }
 
         // pad-copy the shard into d_A
         CK_GPU_CHECK(gpu::MemsetAsync(d_A, 0, P * sizeof(float), cs));
@@ -625,13 +656,31 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
         CK_GPU_CHECK(gpu::StreamSynchronize(cs));
 
         tt::blas_set_stream(blas, cs);
-        if (!tt::tt_decompose(d_A, dims, cap, cfg_.tt_energy_keep, cores, blas, cs)) {
+        const char* diag_env = std::getenv("CHECKERS_TT_DIAG");     // DIAGNOSTIC, unset = off
+        const bool diag = diag_env && *diag_env == '1';
+        tt::TtProf prof;
+        if (!tt::tt_decompose(d_A, dims, cap, cfg_.tt_energy_keep, cores, blas, cs,
+                              diag ? &prof : nullptr)) {
             if (logger_) logger_->log_message("[compressor] codec_tt_eq: '" + wi.st.name +
                 "' tt_decompose failed" +
                 (scratch_.tt_arena.overflows != ovf0 ? std::string(" (TT arena too small)") : std::string()) +
                 " -- raw fallback");
             cleanup();
             return false;
+        }
+        if (diag && logger_) {
+            auto fmt = [](const std::vector<double>& v) {
+                std::string o = "[";
+                char b[32];
+                for (size_t i = 0; i < v.size(); ++i) {
+                    std::snprintf(b, sizeof(b), "%s%.9e", i ? "," : "", v[i]);
+                    o += b;
+                }
+                return o + "]";
+            };
+            logger_->log_message("[ttdiag] " + wi.st.name + " n=" + std::to_string(dims.n1) + "x" +
+                std::to_string(dims.n2) + "x" + std::to_string(dims.n3) + " r1=" + std::to_string(prof.r1) +
+                " r2=" + std::to_string(prof.r2) + " sv1=" + fmt(prof.sv1) + " sv2=" + fmt(prof.sv2));
         }
         if (!tt::tt_reconstruct(cores, d_Ahat, blas, cs)) {
             cleanup();
@@ -1408,7 +1457,7 @@ void CheckpointCompressor::finalize_and_store(
             " critical_path_ms=" + fmt_double(m.critical_path_ms) +
             " compute_ms=" + fmt_double(m.compute_ms) +
             " d2h_ms=" + fmt_double(m.d2h_ms) +
-            " io_ms=" + fmt_double(m.io_ms));
+            " io_ms=" + fmt_double(m.io_ms) + " blas_ws_now=" + std::to_string(tt::tt_blas_current_workspace()));
     }
 }
 
