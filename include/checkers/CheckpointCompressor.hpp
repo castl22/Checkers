@@ -99,9 +99,11 @@ private:
     CheckpointCompressor& operator=(const CheckpointCompressor&) = delete;
 
     struct WorkItem;                  // defined in the .cpp
+    struct StreamFiles;               // the open .cch files of one save (.cpp)
     void finalize_and_store(std::shared_ptr<std::vector<WorkItem>> work,
                             std::shared_ptr<CompressionMetrics>    metrics,
-                            std::string                            output_dir);
+                            std::string                            output_dir,
+                            std::shared_ptr<StreamFiles>           files);
 
     // Uniform scalar quant codec.
     //   PerGroupRms : linear values, step D_g = 2*eps*RMS_g per 256-group

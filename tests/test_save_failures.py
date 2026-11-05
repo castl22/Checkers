@@ -26,6 +26,8 @@ checkers_scr with SCR off, the way the experiments run.  Cases:
                                      RAW_SIDE; raw: RAW_PASSTHROUGH)
   I  restore of a v2 checkpoint   -> complete (--v2-dir, written by the
                                      previous writer), if given
+  L  lossless save (eps 0, streamed raw from the pinned buffers) -> restores
+     bit-exact over NaN-poisoned state, every stream
   J  retry of B without the fault -> commits: B exists, B.inprogress is gone
   K  save to an existing name     -> refuses; the existing checkpoint is untouched
   (B, C, D: the failed save never appears under its real name, only <name>.inprogress)
@@ -49,7 +51,7 @@ sys.path.insert(0, "/usr/WS1/kogiou1/LLM_work/Checkers/python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import checkers_py
 import checkers_scr as cs
-from test_restart_roundtrip import Tiny
+from test_restart_roundtrip import Tiny, snapshot, poison
 
 EPS = 0.05
 INJ = "CHECKERS_TEST_FAIL_TENSOR"
@@ -210,6 +212,22 @@ def main():
               all(restored.get(s) == 4 for s in ("model_state", "master_weights", "exp_avg", "exp_avg_sq")),
               f"I restore of v2 checkpoint (version {hv[1]}) complete: restored={restored} "
               f"warnings={len(res.get('warnings') or [])}")
+
+    # L
+    orig = snapshot(engine, opt)
+    mL = cs.compress_and_save("L", 0.0, blocking=True, allow_lossless=True)
+    poison(engine, opt)
+    res = cs.restart_from_checkpoint(engine, opt, targets="all", name="L")
+    torch.cuda.synchronize()
+    rest = snapshot(engine, opt)
+    same = all(torch.equal(orig["model_state"][n], rest["model_state"][n]) for n in orig["model_state"])
+    for k in ("master", "exp_avg", "exp_avg_sq"):
+        same = same and all(torch.equal(x, y) for x, y in zip(orig[k], rest[k]))
+    lossless = all(v.get("lossless") for v in json.load(open(os.path.join(
+        a.out, "L", "rank_000_manifest.json")))["streams"].values())
+    check(mL.get("validated") is True and lossless and not res.get("warnings") and same,
+          f"L lossless save -> restore bit-exact on all streams: {same} (manifest lossless={lossless}, "
+          f"warnings={len(res.get('warnings') or [])})")
 
     verdict = "PASS" if not fails else "FAIL"
     print(f"\n=== save failures: {verdict} ({len(rows) - len(fails)}/{len(rows)} checks)")

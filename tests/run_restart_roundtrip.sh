@@ -4,8 +4,8 @@
 #
 # PASS requires
 #   1. test_restart_roundtrip.py passes with measure_snr=0 AND measure_snr=1
-#   2. model_state / master_weights / exp_avg_sq .cch files are byte-identical
-#      between the two (measure_snr is diagnostics only and must not change
+#   2. model_state / master_weights / exp_avg_sq .cch files hold identical
+#      tensors (tests/cch_compare.py) between the two (measure_snr is diagnostics only and must not change
 #      what is written).  exp_avg is excluded: its TT-SVD is randomized.
 set -uo pipefail
 T=/usr/WS1/kogiou1/LLM_work/Checkers/tests   # absolute: flux batch runs a copy of this script from /var/tmp
@@ -27,11 +27,12 @@ for m in 0 1; do
   [ $prc -eq 0 ] || { echo "  (measure_snr=$m exited $prc; full log $OUT/snr$m.log)"; rc=1; }
 done
 
-echo "=== .cch byte-identity across measure_snr (per-group streams)"
+echo "=== .cch identity across measure_snr (per-group streams, tensor by tensor)"
+# Tensor by tensor, not md5 of the file: the streaming writer (2026-11-05)
+# appends tensors in completion order, so equal saves can differ in layout.
 for s in model_state master_weights exp_avg_sq; do
-  a=$(md5sum < "$OUT/snr0/rank_000_$s.cch" 2>/dev/null | cut -d' ' -f1)
-  b=$(md5sum < "$OUT/snr1/rank_000_$s.cch" 2>/dev/null | cut -d' ' -f1)
-  if [ -n "$a" ] && [ "$a" = "$b" ]; then echo "  PASS  $s identical"; else echo "  FAIL  $s differs ($a vs $b)"; rc=1; fi
+  if r=$(python "$T/cch_compare.py" "$OUT/snr0/rank_000_$s.cch" "$OUT/snr1/rank_000_$s.cch" 2>&1); then
+    echo "  PASS  $s identical ($r)"; else echo "  FAIL  $s: $r"; rc=1; fi
 done
 echo "=== OVERALL: $([ $rc -eq 0 ] && echo PASS || echo FAIL)   (outputs in $OUT)"
 exit $rc
