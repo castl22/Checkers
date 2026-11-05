@@ -16,7 +16,7 @@ rc=0
 echo "##### regression: run_restart_roundtrip.sh"
 bash "$T/run_restart_roundtrip.sh" "$OUT/roundtrip" || rc=1
 echo "##### save failures: test_save_failures.py"
-python "$T/test_save_failures.py" --out "$OUT/failures" > "$OUT/failures.log" 2>&1 || rc=1
+python "$T/test_save_failures.py" --out "$OUT/failures" ${V2_DIR:+--v2-dir "$V2_DIR"} > "$OUT/failures.log" 2>&1 || rc=1
 grep -E "^===|^  (PASS|FAIL)|Traceback|Error" "$OUT/failures.log"
 echo "##### ALL: $([ $rc -eq 0 ] && echo PASS || echo FAIL)"
 exit $rc

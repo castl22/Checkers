@@ -21,7 +21,15 @@
 namespace checkers {
 
 inline constexpr uint32_t CCH_MAGIC   = 0x31484343u; // "CCH1"
-inline constexpr uint32_t CCH_VERSION = 2u;          // v2: per-group quant codec params
+// v2: per-group quant codec params; index right after the header, then data.
+// v3 (2026-11-05): header, then data, then the index at the END of the file
+//   (header.index_offset points at it), so a writer can append each tensor as
+//   soon as it is compressed and write the index last.  Written by every save;
+//   no zstd anywhere on the save path (see CCH_FLAG_RAW_SIDE).
+// Readers take both: the index is always at header.index_offset, and the data
+// section ends at index_offset when the index follows it (v3), else at EOF (v2).
+inline constexpr uint32_t CCH_VERSION          = 3u;  // what the writer produces
+inline constexpr uint32_t CCH_VERSION_MIN_READ = 2u;  // oldest the reader accepts
 inline constexpr uint32_t CCH_MAX_DIMS = 8u;
 
 // Per-tensor flags
@@ -31,6 +39,11 @@ inline constexpr uint8_t CCH_FLAG_ZSTD            = 1u << 1; // payload is zstd 
 // Per-TENSOR, so a v2 file written with the zstd payload still decodes through
 // the old path -- Restart dispatches on this flag, not on the file version.
 inline constexpr uint8_t CCH_FLAG_BITPACK         = 1u << 2;
+// Side data stored RAW (2026-11-05, every v3 lossy tensor): the bit-pack width
+// block is the nblk width bytes themselves (wcs == nblk) and the aux blob is
+// the uncompressed blob (per-group dcodes/shrink/overflow, or TtHeader + cores
+// + overflow).  Without it both are zstd frames (v2 files).
+inline constexpr uint8_t CCH_FLAG_RAW_SIDE        = 1u << 3;
 
 // Aux blob layout for the per-group quant codecs (uncompressed, before zstd):
 //   [ n_groups * uint8   dcodes  ]  log-domain step codes

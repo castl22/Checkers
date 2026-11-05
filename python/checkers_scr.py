@@ -219,15 +219,22 @@ _CCH_MAGIC = 0x31484343
 
 
 def _cch_read(path):
-    """-> (n_tensors, size the header + index imply).  Raises on a bad header."""
+    """-> (n_tensors, size the header + index imply).  Raises on a bad header.
+
+    Both layouts: v2 = header | index | data, v3 = header | data | index.  The
+    index is at index_offset either way; in v3 every payload must end before it.
+    """
     with open(path, "rb") as f:
         raw = f.read(_CCH_HDR.size)
         if len(raw) != _CCH_HDR.size:
             raise ValueError("header truncated")
         h = _CCH_HDR.unpack(raw)
-        magic, n_tensors, data_off = h[0], h[6], h[10]
+        magic, version, n_tensors, idx_off, data_off = h[0], h[1], h[6], h[9], h[10]
         if magic != _CCH_MAGIC:
             raise ValueError("bad magic 0x%08x" % magic)
+        if version not in (2, 3):
+            raise ValueError("unsupported version %d" % version)
+        f.seek(idx_off)
         idx = f.read(n_tensors * _CCH_IDX)
     if len(idx) != n_tensors * _CCH_IDX:
         raise ValueError("index truncated")
@@ -235,7 +242,9 @@ def _cch_read(path):
     for k in range(n_tensors):
         do, ds, ao, asz = struct.unpack_from("<4Q", idx, k * _CCH_IDX + 344)
         end = max(end, do + ds, ao + asz)
-    return n_tensors, data_off + end
+    if idx_off > data_off and data_off + end > idx_off:
+        raise ValueError("payloads run into the index")
+    return n_tensors, max(data_off + end, idx_off + n_tensors * _CCH_IDX)
 
 
 def _expected_for(stream):

@@ -6,7 +6,6 @@
 #include "checkers/MemoryManager.hpp"
 #include "checkers/PgQuant.hpp"
 #include "checkers/TtLinalg.hpp"
-#include "checkers/ZstdUtil.hpp"
 #include "checkers/logging.hpp"
 
 #include <cerrno>
@@ -86,8 +85,8 @@ struct CheckpointCompressor::WorkItem {
     int                  cat_index = -1;
     int                  slot      = -1;
 
-    std::vector<uint8_t> payload;                 // main payload (zstd)
-    std::vector<uint8_t> aux;                     // codec side-info (zstd); empty for RawZstd
+    std::vector<uint8_t> payload;                 // main payload (raw or GPU bit-packed)
+    std::vector<uint8_t> aux;                     // codec side-info (raw); empty for the raw codec
     uint8_t              flags     = 0;
     uint8_t              codec_id  = static_cast<uint8_t>(CodecId::RawZstd);
 
@@ -413,24 +412,22 @@ bool CheckpointCompressor::codec_pergroup(WorkItem& wi, StagingPool::Slot& sl,
         CK_GPU_CHECK(gpu::StreamSynchronize(cs));
     } // release codec_mtx_ (GPU done; sl.h_buf holds the packed bytes)
 
-    // entropy stage -- parallel across workers.  Only the WIDTH array and the
-    // aux blob still see zstd: n/256 bytes and ~5*ng bytes respectively, against
-    // the n*2 bytes that used to go through it.  The widths are highly
-    // redundant (whole-zero blocks give width 0) and leaving them raw capped
-    // the achievable ratio, so this one small zstd call earns its place.
+    // Side data, RAW (2026-11-05: no CPU zstd anywhere on the save path).
+    // payload = [u32 wcs = nblk][nblk width bytes][packed bits]; aux = aux_raw.
+    // Costs ~2.3% of the eps=0.05 ratio on LLaMA-3-8B (zstd had squeezed the
+    // n/256 width bytes and the ~5*ng-byte aux blob).
     {
         const uint32_t nblk = static_cast<uint32_t>(
             (n + codec::BITPACK_BLOCK - 1) / codec::BITPACK_BLOCK);
-        std::vector<uint8_t> wc = zstd_compress(h_w.data(), nblk, cfg_.zstd_level);
-        const uint32_t wcs = static_cast<uint32_t>(wc.size());
+        const uint32_t wcs = nblk;
         wi.payload.resize(4 + wcs + packed_bytes);
         std::memcpy(wi.payload.data(), &wcs, 4);
-        std::memcpy(wi.payload.data() + 4, wc.data(), wcs);
+        std::memcpy(wi.payload.data() + 4, h_w.data(), wcs);
         if (packed_bytes)
             std::memcpy(wi.payload.data() + 4 + wcs, sl.h_buf, packed_bytes);
     }
-    wi.aux        = zstd_compress(aux_raw.data(), aux_raw.size(), cfg_.zstd_level);
-    wi.flags      = CCH_FLAG_BITPACK;
+    wi.aux        = std::move(aux_raw);
+    wi.flags      = CCH_FLAG_BITPACK | CCH_FLAG_RAW_SIDE;
     wi.codec_id   = static_cast<uint8_t>(
                         log_mode                     ? CodecId::LogPwRelQuant     :
                         mode == PgStepMode::GlobalRms ? CodecId::RmsRelGlobalQuant
@@ -647,21 +644,20 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
         aux_raw.insert(aux_raw.end(), vp, vp + 4);
     }
 
-    {
-        std::vector<uint8_t> wc = zstd_compress(h_w.data(), tt_nblk, cfg_.zstd_level);
-        const uint32_t wcs = static_cast<uint32_t>(wc.size());
+    {   // side data RAW, as in codec_pergroup (TtHeader + cores + overflow in aux)
+        const uint32_t wcs = tt_nblk;
         wi.payload.resize(4 + wcs + packed_bytes);
         std::memcpy(wi.payload.data(), &wcs, 4);
-        std::memcpy(wi.payload.data() + 4, wc.data(), wcs);
+        std::memcpy(wi.payload.data() + 4, h_w.data(), wcs);
         if (packed_bytes)
             std::memcpy(wi.payload.data() + 4 + wcs, sl.h_buf, packed_bytes);
     }
-    wi.aux        = zstd_compress(aux_raw.data(), aux_raw.size(), cfg_.zstd_level);
-    wi.flags      = CCH_FLAG_BITPACK;
+    wi.pg_lo      = static_cast<double>(aux_raw.size());   // exact aux size (restart checks it)
+    wi.aux        = std::move(aux_raw);
+    wi.flags      = CCH_FLAG_BITPACK | CCH_FLAG_RAW_SIDE;
     wi.codec_id   = static_cast<uint8_t>(CodecId::TtEqResidual);
     wi.log_domain = 0u;
     wi.d_global   = D;
-    wi.pg_lo      = static_cast<double>(aux_raw.size());   // exact uncompressed aux size (restart needs it)
     wi.pg_step    = static_cast<double>(cfg_.tt_eq_mode);
     wi.n_groups   = th.core_elems;
     wi.n_over     = h_over;
@@ -854,7 +850,7 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
                     }
 
                     if (!did_lossy) {
-                        // raw + zstd fallback / non-lossy streams
+                        // lossless / fallback: raw bytes (no zstd since 2026-11-05)
                         gpu::Stream_t cs = pool_.compute_stream(static_cast<int>(w));
                         const auto td0 = clock_t_::now();
                         CK_GPU_CHECK(gpu::MemcpyAsync(sl.h_buf, sl.d_buf, wi.st.byte_size,
@@ -862,16 +858,10 @@ CompressionMetrics CheckpointCompressor::run(MemoryManager&     mgr,
                         CK_GPU_CHECK(gpu::StreamSynchronize(cs));
                         wi.d2h_ms = ms_since(td0);
 
-                        auto comp = zstd_compress(sl.h_buf, wi.st.byte_size, cfg_.zstd_level);
-                        if (comp.size() >= wi.st.byte_size) {
-                            wi.payload.assign(static_cast<const uint8_t*>(sl.h_buf),
-                                              static_cast<const uint8_t*>(sl.h_buf) + wi.st.byte_size);
-                            wi.flags = CCH_FLAG_RAW_PASSTHROUGH;
-                        } else {
-                            wi.payload = std::move(comp);
-                            wi.flags   = CCH_FLAG_ZSTD;
-                        }
-                        wi.codec_id = static_cast<uint8_t>(CodecId::RawZstd);
+                        wi.payload.assign(static_cast<const uint8_t*>(sl.h_buf),
+                                          static_cast<const uint8_t*>(sl.h_buf) + wi.st.byte_size);
+                        wi.flags    = CCH_FLAG_RAW_PASSTHROUGH;
+                        wi.codec_id = static_cast<uint8_t>(CodecId::RawZstd);   // id kept: "raw" codec
                         wi.aux.clear();
                         wi.lossy = false;
                     }
@@ -1130,24 +1120,26 @@ void CheckpointCompressor::finalize_and_store(
         h.group_size          = cfg_.group_size;
         h.n_tensors           = nT;
         h.error_bound         = m.error_bounds[c];
-        h.index_offset        = sizeof(CchHeader);
-        h.data_offset         = sizeof(CchHeader) + static_cast<uint64_t>(nT) * sizeof(CchIndexEntry);
+        // v3 layout: header | data | index (the index last, so a streaming
+        // writer can append data as it is produced)
+        h.data_offset         = sizeof(CchHeader);
+        h.index_offset        = sizeof(CchHeader) + running;
         h.total_orig_bytes    = tot_orig;
         h.total_payload_bytes = tot_pay;
 
         std::ofstream f(path, std::ios::binary | std::ios::trunc);
         if (!f) throw std::runtime_error("[compressor] cannot open " + path + ": " + std::strerror(errno));
         write_or_throw(f, &h, sizeof(h), path, "header");
-        write_or_throw(f, index.data(), index.size() * sizeof(CchIndexEntry), path, "index");
         for (uint32_t k = 0; k < nT; ++k) {
             WorkItem& wi = (*work)[by_cat[c][k]];
             write_or_throw(f, wi.payload.data(), wi.payload.size(), path, "payload");
             write_or_throw(f, wi.aux.data(), wi.aux.size(), path, "aux");
         }
+        write_or_throw(f, index.data(), index.size() * sizeof(CchIndexEntry), path, "index");
         close_or_throw(f, path);
         {
             // and the file on disk is exactly as long as its header + index say
-            const uint64_t want = h.data_offset + running;
+            const uint64_t want = h.index_offset + static_cast<uint64_t>(nT) * sizeof(CchIndexEntry);
             std::error_code sec;
             const uint64_t got = fs::file_size(path, sec);
             if (sec || got != want)
@@ -1167,7 +1159,7 @@ void CheckpointCompressor::finalize_and_store(
             (stream_codec == static_cast<uint32_t>(CodecId::LogPwRelQuant))     ? "log_pw_rel" :
             (stream_codec == static_cast<uint32_t>(CodecId::TtEqResidual))      ? "tt_eq" :
             (stream_codec == static_cast<uint32_t>(CodecId::RmsRelGlobalQuant)) ? "rms_rel_global" :
-            "raw_zstd";
+            "raw";
         double snr_db = 0.0;
         const StreamMetrics& sm_c = m.per_stream[c];
         if (stream_lossy && sm_c.sq_err > 0.0)

@@ -39,18 +39,27 @@ bool read_stream_file(const std::string& path, LoadedStream& out, std::string& e
 
     f.read(reinterpret_cast<char*>(&out.header), sizeof(CchHeader));
     if (!f || out.header.magic != CCH_MAGIC) { err = "bad magic"; return false; }
-    if (out.header.version != CCH_VERSION)   { err = "version mismatch"; return false; }
+    if (out.header.version < CCH_VERSION_MIN_READ || out.header.version > CCH_VERSION) {
+        err = "unsupported version " + std::to_string(out.header.version); return false;
+    }
 
+    // v2: index right after the header, data to EOF.  v3: data, then the
+    // index at the end.  Both: the index is at index_offset.
+    f.seekg(0, std::ios::end);
+    const std::streamoff file_end  = f.tellg();
+    const std::streamoff idx_beg   = static_cast<std::streamoff>(out.header.index_offset);
+    const std::streamoff idx_bytes = static_cast<std::streamoff>(out.header.n_tensors) *
+                                     static_cast<std::streamoff>(sizeof(CchIndexEntry));
+    if (idx_beg + idx_bytes > file_end) { err = "truncated index"; return false; }
     out.index.resize(out.header.n_tensors);
-    f.read(reinterpret_cast<char*>(out.index.data()),
-           static_cast<std::streamsize>(out.index.size() * sizeof(CchIndexEntry)));
+    f.seekg(idx_beg, std::ios::beg);
+    f.read(reinterpret_cast<char*>(out.index.data()), idx_bytes);
     if (!f) { err = "truncated index"; return false; }
 
-    f.seekg(0, std::ios::end);
-    const std::streamoff file_end = f.tellg();
     const std::streamoff data_beg = static_cast<std::streamoff>(out.header.data_offset);
-    if (file_end < data_beg) { err = "truncated data"; return false; }
-    out.data.resize(static_cast<size_t>(file_end - data_beg));
+    const std::streamoff data_end = (idx_beg > data_beg) ? idx_beg : file_end;
+    if (data_end < data_beg) { err = "truncated data"; return false; }
+    out.data.resize(static_cast<size_t>(data_end - data_beg));
     f.seekg(data_beg, std::ios::beg);
     f.read(reinterpret_cast<char*>(out.data.data()),
            static_cast<std::streamsize>(out.data.size()));
@@ -106,7 +115,13 @@ std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
         if (e.data_size < 4) return "bitpack payload truncated";
         uint32_t wcs = 0; std::memcpy(&wcs, payload, 4);
         if (4u + wcs > e.data_size) return "bitpack width block truncated";
-        bw = zstd_decompress(payload + 4, wcs, nblk);
+        if (e.flags & CCH_FLAG_RAW_SIDE) {
+            if (wcs != nblk) return "raw width block is " + std::to_string(wcs) + " B, expected " +
+                                   std::to_string(nblk);
+            bw.assign(payload + 4, payload + 4 + nblk);
+        } else {
+            bw = zstd_decompress(payload + 4, wcs, nblk);
+        }
         if (bw.size() < nblk) return "bitpack widths short";
         boff.resize(nblk);
         uint64_t run = 0;
@@ -119,7 +134,14 @@ std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
     }
     const size_t aux_raw_n = static_cast<size_t>(ng) + static_cast<size_t>(ng) * 4u
                            + static_cast<size_t>(no) * 8u;
-    std::vector<uint8_t> ax = zstd_decompress(aux, e.aux_size, aux_raw_n);
+    std::vector<uint8_t> ax;
+    if (e.flags & CCH_FLAG_RAW_SIDE) {
+        if (e.aux_size != aux_raw_n) return "raw aux is " + std::to_string(e.aux_size) +
+                                            " B, expected " + std::to_string(aux_raw_n);
+        ax.assign(aux, aux + aux_raw_n);
+    } else {
+        ax = zstd_decompress(aux, e.aux_size, aux_raw_n);
+    }
 
     const uint8_t* dcodes = ax.data();
     const float*   shrink = reinterpret_cast<const float*>(ax.data() + ng);
@@ -247,7 +269,14 @@ std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
         aux_exact = sizeof(TtHeader)
                   + static_cast<size_t>(e.n_groups) * sizeof(uint16_t)
                   + static_cast<size_t>(e.n_over) * 8u;
-    std::vector<uint8_t> ax = zstd_decompress(aux, e.aux_size, aux_exact);
+    std::vector<uint8_t> ax;
+    if (e.flags & CCH_FLAG_RAW_SIDE) {
+        if (e.aux_size != aux_exact) return "tt_eq: raw aux is " + std::to_string(e.aux_size) +
+                                            " B, expected " + std::to_string(aux_exact);
+        ax.assign(aux, aux + aux_exact);
+    } else {
+        ax = zstd_decompress(aux, e.aux_size, aux_exact);
+    }
     if (ax.size() < sizeof(TtHeader)) return "tt_eq: aux too short";
 
     TtHeader th{};
@@ -291,7 +320,13 @@ std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
         if (e.data_size < 4) return "tt_eq: bitpack payload truncated";
         uint32_t wcs = 0; std::memcpy(&wcs, payload, 4);
         if (4u + wcs > e.data_size) return "tt_eq: bitpack width block truncated";
-        tbw = zstd_decompress(payload + 4, wcs, tt_nblk);
+        if (e.flags & CCH_FLAG_RAW_SIDE) {
+            if (wcs != tt_nblk) return "tt_eq: raw width block is " + std::to_string(wcs) +
+                                       " B, expected " + std::to_string(tt_nblk);
+            tbw.assign(payload + 4, payload + 4 + tt_nblk);
+        } else {
+            tbw = zstd_decompress(payload + 4, wcs, tt_nblk);
+        }
         if (tbw.size() < tt_nblk) return "tt_eq: bitpack widths short";
         tboff.resize(tt_nblk);
         uint64_t run = 0;
@@ -461,6 +496,12 @@ py::dict restart_apply(MemoryManager&              mgr,
                 continue;
             }
             const CchIndexEntry& e = *it->second;
+            if (e.data_offset + e.data_size > ls.data.size() ||
+                e.aux_offset + e.aux_size > ls.data.size()) {
+                warnings.append(py::str(std::string(sname) + ": '" + stv.name +
+                                        "' payload/aux past the end of the data section"));
+                continue;
+            }
             const uint8_t* payload = ls.data.data() + e.data_offset;
             const uint8_t* aux     = ls.data.data() + e.aux_offset;
 
