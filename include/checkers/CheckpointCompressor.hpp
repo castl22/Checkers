@@ -15,6 +15,7 @@
 
 #include "checkers/api.hpp"            // CompressionConfig, CodecId
 #include "checkers/StagingPool.hpp"
+#include "checkers/TtLinalg.hpp"       // TtArena
 #include "checkers/TensorResource.hpp" // TensorCategory, tracked_tensor_category_count
 
 namespace checkers {
@@ -151,8 +152,24 @@ private:
         size_t    max_groups = 0;
         size_t    over_cap   = 0;
         size_t    bytes      = 0;         // total device footprint
+
+        // TT codec (exp_avg), allocated ONCE at initialize_context
+        // (2026-11-05: was ~28 hipMalloc + hipFree per tensor).  Shared under
+        // codec_mtx_ like the rest; tt_arena backs tt_decompose's temporaries
+        // and the cores and is reset per tensor.
+        float*      tt_A      = nullptr;   // [tt_P_max]  padded shard
+        float*      tt_Ahat   = nullptr;   // [tt_P_max]  low-rank recon, then full recon
+        float*      tt_R      = nullptr;   // [tt_L_max]  residual
+        float*      tt_step   = nullptr;   // [1]         EQ step
+        uint16_t*   tt_core16 = nullptr;   // [tt_ce_max] fp16 cores
+        size_t      tt_P_max = 0, tt_L_max = 0, tt_ce_max = 0;
+        size_t      tt_bytes = 0;          // all of the above + the arena
+        size_t      tt_blas_ws = 0;        // fixed rocBLAS workspace (owned by rocBLAS)
+        tt::TtArena tt_arena;
     };
     void alloc_codec_scratch(size_t max_elems, size_t expand_elems, uint32_t group);
+    // TT scratch sized for these exp_avg shard lengths (the TT-eligible ones)
+    void alloc_tt_scratch(const std::vector<size_t>& exp_avg_lens);
     void free_codec_scratch();
 
     CompressionConfig            cfg_{};

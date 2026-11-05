@@ -223,7 +223,68 @@ void CheckpointCompressor::free_codec_scratch() {
     if (scratch_.over_idx)   (void)gpu::Free(scratch_.over_idx);
     if (scratch_.over_val)   (void)gpu::Free(scratch_.over_val);
     if (scratch_.over_count) (void)gpu::Free(scratch_.over_count);
+    if (scratch_.w)          (void)gpu::Free(scratch_.w);        // these three were
+    if (scratch_.off)        (void)gpu::Free(scratch_.off);      // never freed before
+    if (scratch_.packed)     (void)gpu::Free(scratch_.packed);   // 2026-11-05
+    if (scratch_.tt_A)       (void)gpu::Free(scratch_.tt_A);
+    if (scratch_.tt_Ahat)    (void)gpu::Free(scratch_.tt_Ahat);
+    if (scratch_.tt_R)       (void)gpu::Free(scratch_.tt_R);
+    if (scratch_.tt_step)    (void)gpu::Free(scratch_.tt_step);
+    if (scratch_.tt_core16)  (void)gpu::Free(scratch_.tt_core16);
+    if (scratch_.tt_arena.base) (void)gpu::Free(scratch_.tt_arena.base);
     scratch_ = CodecScratch{};
+}
+
+// TT scratch for the exp_avg codec, sized from the TT-eligible shard lengths:
+// P / L / core buffers for the largest, an arena covering tt_decompose +
+// tt_reconstruct of the most demanding dims, and a FIXED rocBLAS workspace
+// covering every GEMM shape they run (rocBLAS size query).  After this a save
+// does no device allocation or free in the TT codec.
+void CheckpointCompressor::alloc_tt_scratch(const std::vector<size_t>& lens) {
+    const uint32_t ndim = std::min<uint32_t>(std::max<uint32_t>(cfg_.tt_ndim, 2u), 3u);
+    const uint32_t cap  = std::max<uint32_t>(cfg_.tt_max_rank, 1u);
+    size_t arena = 0, ws = 0;
+    for (size_t L : lens) {
+        const tt::TtDims d = tt::choose_dims(L, ndim);
+        scratch_.tt_P_max  = std::max<size_t>(scratch_.tt_P_max, d.padded());
+        scratch_.tt_L_max  = std::max(scratch_.tt_L_max, L);
+        scratch_.tt_ce_max = std::max<size_t>(scratch_.tt_ce_max,
+            (size_t)d.n1 * cap + (size_t)cap * d.n2 * cap + (size_t)cap * d.n3);
+        arena = std::max(arena, tt::tt_arena_bytes(d, cap));
+        ws    = std::max(ws, tt::tt_blas_workspace_bytes(d, cap));
+    }
+    if (scratch_.tt_L_max == 0) return;
+    void* p = nullptr;
+    CK_GPU_CHECK(gpu::Malloc(&p, scratch_.tt_P_max * sizeof(float)));  scratch_.tt_A      = static_cast<float*>(p);
+    CK_GPU_CHECK(gpu::Malloc(&p, scratch_.tt_P_max * sizeof(float)));  scratch_.tt_Ahat   = static_cast<float*>(p);
+    CK_GPU_CHECK(gpu::Malloc(&p, scratch_.tt_L_max * sizeof(float)));  scratch_.tt_R      = static_cast<float*>(p);
+    CK_GPU_CHECK(gpu::Malloc(&p, sizeof(float)));                      scratch_.tt_step   = static_cast<float*>(p);
+    CK_GPU_CHECK(gpu::Malloc(&p, scratch_.tt_ce_max * sizeof(uint16_t))); scratch_.tt_core16 = static_cast<uint16_t*>(p);
+    CK_GPU_CHECK(gpu::Malloc(&p, arena));
+    scratch_.tt_arena = tt::TtArena{};
+    scratch_.tt_arena.base = static_cast<uint8_t*>(p);
+    scratch_.tt_arena.cap  = arena;
+    // Default: a FIXED 256 MB rocBLAS workspace (or the query's figure if
+    // larger).  The size query returns 0 B for these shapes, but pinning
+    // rocBLAS to that (4 KB) changed its GEMM kernels and left 201 of 1808
+    // LLaMA-3-8B exp_avg tensors consistently worse; rocBLAS manages 128 MB
+    // by itself, and 256 MB fixed matched the old build (2026-11-05).
+    const size_t ws_query = ws;
+    ws = std::max(ws, static_cast<size_t>(256) << 20);
+    std::string ws_mode = "256 MB default (query said " + std::to_string(ws_query) + " B)";
+    if (!tt::tt_blas_fix_workspace(ws))
+        throw std::runtime_error("[compressor] could not give rocBLAS a fixed workspace of " +
+                                 std::to_string(ws) + " B");
+    if (logger_) logger_->log_message("[compressor] rocBLAS workspace: " + ws_mode);
+    scratch_.tt_blas_ws = ws;
+    scratch_.tt_bytes = 2 * scratch_.tt_P_max * sizeof(float) + scratch_.tt_L_max * sizeof(float)
+                      + sizeof(float) + scratch_.tt_ce_max * sizeof(uint16_t) + arena;
+    scratch_.bytes += scratch_.tt_bytes;
+    if (logger_) logger_->log_message("[compressor] TT scratch allocated once: " +
+        std::to_string(scratch_.tt_bytes) + " B (P_max=" + std::to_string(scratch_.tt_P_max) +
+        " L_max=" + std::to_string(scratch_.tt_L_max) + " arena=" + std::to_string(arena) +
+        " B) + fixed rocBLAS workspace " + std::to_string(ws) + " B, for " +
+        std::to_string(lens.size()) + " TT-eligible exp_avg shards");
 }
 
 void CheckpointCompressor::alloc_codec_scratch(size_t max_elems, size_t expand_elems,
@@ -513,6 +574,7 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
     if (wi.st.dtype != DataType::Float32) return false;
     if (L < (1u << 15) || L > 0xFFFFFFFFull) return false;   // small / oversized -> raw
     if (L > scratch_.max_elems) return false;
+    if (L > scratch_.tt_L_max) return false;              // not sized for it -> raw
 
     gpu::Stream_t cs = pool_.compute_stream(worker_id);
     const uint32_t ndim = std::min<uint32_t>(std::max<uint32_t>(cfg_.tt_ndim, 2u), 3u);
@@ -528,13 +590,11 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
     float*    d_step1     = nullptr;   // [1]  EQ step
     tt::TtCores cores;
 
+    // all of these live in scratch_ (allocated once); the cores and every
+    // tt_decompose temporary are slices of scratch_.tt_arena
     auto cleanup = [&]() {
-        if (d_A)        (void)gpu::Free(d_A);
-        if (d_Ahat)     (void)gpu::Free(d_Ahat);
-        if (d_R)        (void)gpu::Free(d_R);
-        if (d_core_u16) (void)gpu::Free(d_core_u16);
-        if (d_step1)    (void)gpu::Free(d_step1);
-        tt::tt_free(cores);
+        tt::tt_free(cores);            // arena-owned: no hipFree
+        tt::tt_set_arena(nullptr);
     };
 
     uint32_t             h_over = 0;
@@ -551,13 +611,13 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
     {
         std::lock_guard<std::mutex> lk(codec_mtx_);
 
-        if (gpu::Malloc(reinterpret_cast<void**>(&d_A),    P * sizeof(float)) != gpu::Success ||
-            gpu::Malloc(reinterpret_cast<void**>(&d_Ahat), P * sizeof(float)) != gpu::Success ||
-            gpu::Malloc(reinterpret_cast<void**>(&d_R),    L * sizeof(float)) != gpu::Success ||
-            gpu::Malloc(reinterpret_cast<void**>(&d_step1), sizeof(float))    != gpu::Success) {
-            cleanup();
-            return false;
-        }
+        if (P > scratch_.tt_P_max) return false;
+        d_A = scratch_.tt_A; d_Ahat = scratch_.tt_Ahat; d_R = scratch_.tt_R; d_step1 = scratch_.tt_step;
+        scratch_.tt_arena.used = 0;                 // fresh arena for this tensor
+        const uint64_t ovf0 = scratch_.tt_arena.overflows;
+        tt::tt_set_arena(&scratch_.tt_arena);       // this thread, until cleanup()
+        struct ArenaOff { ~ArenaOff() { tt::tt_set_arena(nullptr); } } arena_off;  // also on a throw
+
 
         // pad-copy the shard into d_A
         CK_GPU_CHECK(gpu::MemsetAsync(d_A, 0, P * sizeof(float), cs));
@@ -567,7 +627,9 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
         tt::blas_set_stream(blas, cs);
         if (!tt::tt_decompose(d_A, dims, cap, cfg_.tt_energy_keep, cores, blas, cs)) {
             if (logger_) logger_->log_message("[compressor] codec_tt_eq: '" + wi.st.name +
-                "' tt_decompose failed -- raw fallback");
+                "' tt_decompose failed" +
+                (scratch_.tt_arena.overflows != ovf0 ? std::string(" (TT arena too small)") : std::string()) +
+                " -- raw fallback");
             cleanup();
             return false;
         }
@@ -661,10 +723,8 @@ bool CheckpointCompressor::codec_tt_eq(WorkItem& wi, StagingPool::Slot& sl,
         const size_t   e1 = static_cast<size_t>(cores.n1) * cores.r1;
         const size_t   e2 = static_cast<size_t>(cores.r1) * cores.n2 * cores.r2;
         const size_t   e3 = static_cast<size_t>(cores.r2) * cores.n3;
-        if (gpu::Malloc(reinterpret_cast<void**>(&d_core_u16), ce * sizeof(uint16_t)) != gpu::Success) {
-            cleanup();
-            return false;
-        }
+        if (ce > scratch_.tt_ce_max) { cleanup(); return false; }
+        d_core_u16 = scratch_.tt_core16;
         codec::contract_from_fp32(cores.g1, DataType::Float16, e1, d_core_u16, cs);
         codec::contract_from_fp32(cores.g2, DataType::Float16, e2, d_core_u16 + e1, cs);
         codec::contract_from_fp32(cores.g3, DataType::Float16, e3, d_core_u16 + e1 + e2, cs);
@@ -766,6 +826,15 @@ void CheckpointCompressor::allocate(MemoryManager& mgr) {
 
     pool_.allocate(slot_bytes, ring, workers);
     alloc_codec_scratch(max_elems, expand_elems, cfg_.group_size);
+    {
+        std::vector<size_t> tt_lens;      // the shards codec_tt_eq will take
+        for (const auto& s : staged)
+            if (tensor_category_index(s.category) == 2 && s.dtype == DataType::Float32 &&
+                s.num_elements >= (1u << 15) && s.num_elements <= 0xFFFFFFFFull &&
+                s.num_elements <= max_elems)
+                tt_lens.push_back(s.num_elements);
+        alloc_tt_scratch(tt_lens);
+    }
 
     size_t free_after = 0;
     (void)gpu::MemGetInfo(&free_after, &total_b);

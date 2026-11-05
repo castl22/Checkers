@@ -119,6 +119,22 @@ __global__ void k_absmax(const float* __restrict__ x, size_t n,
 
 inline uint32_t grid_for(size_t n, uint32_t b) { return (uint32_t)((n + b - 1) / b); }
 
+// ---- one-time workspace (see tt_set_arena) -------------------------------
+thread_local TtArena* t_arena = nullptr;
+// device allocation: an arena slice when an arena is set, else hipMalloc
+bool dmalloc(void** p, size_t bytes) {
+    if (t_arena) {
+        const size_t at = (t_arena->used + 255) & ~size_t(255);
+        if (at + bytes > t_arena->cap) { t_arena->overflows++; *p = nullptr; return false; }
+        *p = t_arena->base + at;
+        t_arena->used = at + bytes;
+        t_arena->peak = std::max(t_arena->peak, t_arena->used);
+        return true;
+    }
+    return hipMalloc(p, bytes) == hipSuccess;
+}
+void dfree(void* p) { if (!t_arena && p) (void)hipFree(p); }
+
 #define TT_HIP_OK(call) do { hipError_t _e = (call); if (_e != hipSuccess) return false; } while (0)
 
 // ---- row-major GEMM: C(m x n) = alpha * opA(A) * opB(B) + beta * C -----------
@@ -185,8 +201,8 @@ void jacobi_sym(std::vector<double>& A, int d,
 
 struct Dev {
     void* p = nullptr;
-    ~Dev() { if (p) hipFree(p); }
-    bool alloc(size_t bytes) { return hipMalloc(&p, bytes) == hipSuccess; }
+    ~Dev() { dfree(p); }
+    bool alloc(size_t bytes) { return dmalloc(&p, bytes); }
     float* f() { return reinterpret_cast<float*>(p); }
 };
 
@@ -197,11 +213,11 @@ struct Dev {
 bool emit_e0(int m, hipStream_t s, float** Qr_out,
              std::vector<double>& sv_out, int* l_out) {
     float* Qr = nullptr;
-    if (hipMalloc(&Qr, sizeof(float) * (size_t)m) != hipSuccess) return false;
-    if (hipMemsetAsync(Qr, 0, sizeof(float) * (size_t)m, s) != hipSuccess) { hipFree(Qr); return false; }
+    if (!dmalloc((void**)&Qr, sizeof(float) * (size_t)m)) return false;
+    if (hipMemsetAsync(Qr, 0, sizeof(float) * (size_t)m, s) != hipSuccess) { dfree(Qr); return false; }
     const float one = 1.0f;
-    if (hipMemcpyAsync(Qr, &one, sizeof(float), hipMemcpyHostToDevice, s) != hipSuccess) { hipFree(Qr); return false; }
-    if (hipStreamSynchronize(s) != hipSuccess) { hipFree(Qr); return false; }
+    if (hipMemcpyAsync(Qr, &one, sizeof(float), hipMemcpyHostToDevice, s) != hipSuccess) { dfree(Qr); return false; }
+    if (hipStreamSynchronize(s) != hipSuccess) { dfree(Qr); return false; }
     sv_out.assign(1, 0.0);
     *Qr_out = Qr;
     *l_out  = 1;
@@ -250,16 +266,16 @@ bool range_finder_fast(rocblas_handle h, hipStream_t s,
     // fp32 and an orthonormal basis is scale-invariant, so this is the whole
     // reason the old code copied and normalized all P elements of A.
     unsigned int* d_am = nullptr;
-    if (hipMalloc(&d_am, sizeof(unsigned int)) != hipSuccess) return false;
+    if (!dmalloc((void**)&d_am, sizeof(unsigned int))) return false;
     hipMemsetAsync(d_am, 0, sizeof(unsigned int), s);
     k_absmax<<<std::min<uint32_t>(256u, grid_for((size_t)m * S, B)), B, 0, s>>>(
         Ms.f(), (size_t)m * S, d_am);
     unsigned int h_am = 0;
     if (hipMemcpyAsync(&h_am, d_am, sizeof(unsigned int), hipMemcpyDeviceToHost, s) != hipSuccess) {
-        hipFree(d_am); return false;
+        dfree(d_am); return false;
     }
     hipStreamSynchronize(s);
-    hipFree(d_am);
+    dfree(d_am);
     const float smax = __builtin_bit_cast(float, h_am);
     if (!(smax > 0.0f)) return emit_e0(m, s, Qr_out, sv_out, l_out);
     k_scale_inplace<<<grid_for((size_t)m * S, B), B, 0, s>>>(
@@ -304,8 +320,8 @@ bool range_finder_fast(rocblas_handle h, hipStream_t s,
     TT_HIP_OK(hipMemcpy(W.p, hW.data(), sizeof(float) * (size_t)l * le, hipMemcpyHostToDevice));
 
     float* Qr = nullptr;
-    if (hipMalloc(&Qr, sizeof(float) * (size_t)m * le) != hipSuccess) return false;
-    if (!gemm_rm(h, false, false, m, le, l, 1.f, Y.f(), W.f(), 0.f, Qr)) { hipFree(Qr); return false; }
+    if (!dmalloc((void**)&Qr, sizeof(float) * (size_t)m * le)) return false;
+    if (!gemm_rm(h, false, false, m, le, l, 1.f, Y.f(), W.f(), 0.f, Qr)) { dfree(Qr); return false; }
     TT_HIP_OK(hipStreamSynchronize(s));
     *Qr_out = Qr;
     *l_out  = le;
@@ -402,8 +418,8 @@ bool range_finder(rocblas_handle h, hipStream_t s,
     TT_HIP_OK(hipMemcpy(Ub.p, hUb.data(), sizeof(float) * (size_t)le * le, hipMemcpyHostToDevice));
 
     float* Qr = nullptr;
-    if (hipMalloc(&Qr, sizeof(float) * (size_t)m * le) != hipSuccess) return false;
-    if (!gemm_rm(h, false, false, m, le, le, 1.f, Q.f(), Ub.f(), 0.f, Qr)) { hipFree(Qr); return false; }
+    if (!dmalloc((void**)&Qr, sizeof(float) * (size_t)m * le)) return false;
+    if (!gemm_rm(h, false, false, m, le, le, 1.f, Q.f(), Ub.f(), 0.f, Qr)) { dfree(Qr); return false; }
     TT_HIP_OK(hipStreamSynchronize(s));
     *Qr_out = Qr;
     *l_out  = le;
@@ -451,9 +467,11 @@ TtDims choose_dims(size_t L, uint32_t ndim) {
 
 void tt_free(TtCores& c) {
 #if TT_HAVE_ROCBLAS
-    if (c.g1) hipFree(c.g1);
-    if (c.g2) hipFree(c.g2);
-    if (c.g3) hipFree(c.g3);
+    if (!c.arena_owned) {                 // arena slices are not ours to free
+        if (c.g1) hipFree(c.g1);
+        if (c.g2) hipFree(c.g2);
+        if (c.g3) hipFree(c.g3);
+    }
 #endif
     c = TtCores{};
 }
@@ -478,6 +496,7 @@ bool tt_decompose(const float* A, const TtDims& dims,
     const uint32_t B  = 256;
     out = TtCores{};
     out.n1 = n1; out.n2 = n2; out.n3 = n3;
+    out.arena_owned = (t_arena != nullptr);
     if (P == 0 || rank_cap == 0) return false;
 
     // ---- split 1:  M1 = A  as  n1 x (n2*n3), sketched from a column sample ----
@@ -493,9 +512,9 @@ bool tt_decompose(const float* A, const TtDims& dims,
     if (!range_finder_fast(h, s, A, (int)n1, cols1, rank_cap, &Qr1, sv1, &l1)) return false;
     const uint32_t r1 = adaptive_rank(sv1, energy_keep, rank_cap);
     out.r1 = r1;
-    if (hipMalloc(&out.g1, sizeof(float) * (size_t)n1 * r1) != hipSuccess) { hipFree(Qr1); return false; }
+    if (!dmalloc((void**)&out.g1, sizeof(float) * (size_t)n1 * r1)) { dfree(Qr1); return false; }
     k_copy_cols<<<grid_for((size_t)n1 * r1, B), B, 0, s>>>(Qr1, n1, (uint32_t)l1, r1, out.g1);
-    hipFree(Qr1);
+    dfree(Qr1);
     if (prof) { prof->sketch1_ms = tmark(t_stage); t_stage = tt_clk::now(); }
 
     Dev C;
@@ -512,15 +531,15 @@ bool tt_decompose(const float* A, const TtDims& dims,
     {
         const size_t cn = (size_t)r1 * cols1;
         unsigned int* d_am = nullptr;
-        if (hipMalloc(&d_am, sizeof(unsigned int)) != hipSuccess) return false;
+        if (!dmalloc((void**)&d_am, sizeof(unsigned int))) return false;
         hipMemsetAsync(d_am, 0, sizeof(unsigned int), s);
         k_absmax<<<std::min<uint32_t>(256u, grid_for(cn, B)), B, 0, s>>>(C.f(), cn, d_am);
         unsigned int h_am = 0;
         if (hipMemcpyAsync(&h_am, d_am, sizeof(unsigned int), hipMemcpyDeviceToHost, s) != hipSuccess) {
-            hipFree(d_am); return false;
+            dfree(d_am); return false;
         }
         hipStreamSynchronize(s);
-        hipFree(d_am);
+        dfree(d_am);
         const float cmax = __builtin_bit_cast(float, h_am);
         if (cmax > 0.0f) {
             scale = cmax;
@@ -536,12 +555,12 @@ bool tt_decompose(const float* A, const TtDims& dims,
     if (!range_finder(h, s, C.f(), rows2, (int)n3, rank_cap, &Qr2, sv2, &l2)) return false;
     const uint32_t r2 = adaptive_rank(sv2, energy_keep, rank_cap);
     out.r2 = r2;
-    if (hipMalloc(&out.g2, sizeof(float) * (size_t)rows2 * r2) != hipSuccess) { hipFree(Qr2); return false; }
+    if (!dmalloc((void**)&out.g2, sizeof(float) * (size_t)rows2 * r2)) { dfree(Qr2); return false; }
     k_copy_cols<<<grid_for((size_t)rows2 * r2, B), B, 0, s>>>(Qr2, (uint32_t)rows2, (uint32_t)l2, r2, out.g2);
-    hipFree(Qr2);
+    dfree(Qr2);
 
     if (prof) { prof->sketch2_ms = tmark(t_stage); t_stage = tt_clk::now(); }
-    if (hipMalloc(&out.g3, sizeof(float) * (size_t)r2 * n3) != hipSuccess) return false;
+    if (!dmalloc((void**)&out.g3, sizeof(float) * (size_t)r2 * n3)) return false;
     // G3 = G2^T * M2   (r2 x n3)
     if (!gemm_rm(h, true, false, (int)r2, (int)n3, rows2, 1.f, out.g2, C.f(), 0.f, out.g3)) return false;
     // undo the O(1) normalization
@@ -576,11 +595,85 @@ bool tt_reconstruct(const TtCores& c, float* A_hat, void* blas, gpu::Stream_t st
     if (!tt_reconstruct_ws(c, A_hat, T1.f(), blas, stream)) return false;
     return hipStreamSynchronize(reinterpret_cast<hipStream_t>(stream)) == hipSuccess;
 }
+void tt_set_arena(TtArena* a) { t_arena = a; }
+
+// Mirrors the allocations of tt_decompose (range_finder_fast on split 1,
+// range_finder on split 2, cores, C, absmax cells, the e0 fallbacks) and
+// tt_reconstruct's T1, with every rank at its cap and every effective rank
+// at its maximum l -- an upper bound, since the arena never frees.
+size_t tt_arena_bytes(const TtDims& d, uint32_t cap) {
+    size_t tot = 0;
+    auto add = [&](uint64_t floats) { tot += ((floats * 4 + 255) & ~uint64_t(255)) + 256; };
+    const uint64_t n1 = d.n1, n2 = d.n2, n3 = d.n3, cols1 = n2 * n3, c = cap;
+    // split 1: range_finder_fast(m = n1, n = cols1)
+    const uint64_t l1 = std::min<uint64_t>({c + 8, n1, std::min<uint64_t>(cols1, 1u << 20)});
+    const uint64_t S64 = std::min<uint64_t>(cols1, std::max<uint64_t>(4096u, l1 * 64u));
+    const uint64_t nw = std::min<uint64_t>(32u, S64), wlen = std::max<uint64_t>(1u, S64 / std::max<uint64_t>(nw, 1));
+    const uint64_t S = nw * wlen;
+    add(n1 * S); add(1); add(S * l1); add(n1 * l1); add(l1 * l1); add(l1 * l1); add(n1 * l1); add(n1);
+    add(n1 * c);            // g1
+    add(c * cols1);         // C
+    add(1);                 // absmax cell
+    // split 2: range_finder(m = rows2, n = n3)
+    const uint64_t rows2 = c * n2;
+    const uint64_t l2 = std::min<uint64_t>({c + 8, rows2, n3});
+    add(n3 * l2); add(rows2 * l2); add(n3 * l2); add(l2 * l2); add(l2 * l2); add(rows2 * l2);
+    add(l2 * n3); add(l2 * l2); add(l2 * l2); add(rows2 * l2); add(rows2);
+    add(rows2 * c);         // g2
+    add(c * n3);            // g3
+    add(n1 * n2 * c);       // tt_reconstruct's T1
+    return tot;
+}
+
+size_t tt_blas_workspace_bytes(const TtDims& d, uint32_t cap) {
+    auto h = reinterpret_cast<rocblas_handle>(blas_handle());
+    if (!h) return 0;
+    void* dummy = nullptr;                       // query mode never touches the operands
+    if (hipMalloc(&dummy, 256) != hipSuccess) return 0;
+    const float* D = static_cast<const float*>(dummy);
+    float* Dw = static_cast<float*>(dummy);
+    if (rocblas_start_device_memory_size_query(h) != rocblas_status_success) { hipFree(dummy); return 0; }
+    const int n1 = (int)d.n1, n2 = (int)d.n2, n3 = (int)d.n3, c = (int)cap;
+    const int cols1 = (int)((uint64_t)d.n2 * d.n3);
+    const int l1 = (int)std::min<uint64_t>({(uint64_t)c + 8, (uint64_t)n1, std::min<uint64_t>(cols1, 1u << 20)});
+    const int S = (int)std::min<uint64_t>(cols1, std::max<uint64_t>(4096u, (uint64_t)l1 * 64u));
+    const int rows2 = c * n2;
+    const int l2 = std::min({c + 8, rows2, n3});
+    // the GEMM shapes of tt_decompose + tt_reconstruct, effective ranks at max
+    (void)gemm_rm(h, false, false, n1, l1, S, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, true,  false, l1, l1, n1, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, false, false, n1, l1, l1, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, true,  false, c, cols1, n1, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, false, false, rows2, l2, n3, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, true,  false, n3, l2, rows2, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, true,  false, l2, l2, rows2, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, false, false, rows2, l2, l2, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, true,  false, l2, n3, rows2, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, false, true,  l2, l2, n3, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, true,  false, c, n3, rows2, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, false, false, n1, n2 * c, c, 1.f, D, D, 0.f, Dw);
+    (void)gemm_rm(h, false, false, n1 * n2, n3, c, 1.f, D, D, 0.f, Dw);
+    size_t bytes = 0;
+    if (rocblas_stop_device_memory_size_query(h, &bytes) != rocblas_status_success) bytes = 0;
+    hipFree(dummy);
+    return bytes;
+}
+
+bool tt_blas_fix_workspace(size_t bytes) {
+    auto h = reinterpret_cast<rocblas_handle>(blas_handle());
+    if (!h) return false;
+    // size 0 would hand memory management back to rocBLAS (grow on demand)
+    return rocblas_set_device_memory_size(h, std::max<size_t>(bytes, 4096)) == rocblas_status_success;
+}
 #else  // no rocBLAS -> codec disabled, caller falls back
 bool tt_decompose(const float*, const TtDims&, uint32_t, double,
                   TtCores&, void*, gpu::Stream_t) { return false; }
 bool tt_reconstruct(const TtCores&, float*, void*, gpu::Stream_t) { return false; }
 size_t tt_reconstruct_ws_floats(const TtCores&) { return 0; }
+void   tt_set_arena(TtArena*) {}
+size_t tt_arena_bytes(const TtDims&, uint32_t) { return 0; }
+size_t tt_blas_workspace_bytes(const TtDims&, uint32_t) { return 0; }
+bool   tt_blas_fix_workspace(size_t) { return false; }
 bool tt_reconstruct_ws(const TtCores&, float*, float*, void*, gpu::Stream_t) { return false; }
 #endif
 

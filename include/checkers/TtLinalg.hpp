@@ -53,11 +53,40 @@ struct TtCores {
     float*   g3 = nullptr;   // r2 x n3
     uint32_t n1 = 0, n2 = 0, n3 = 0;
     uint32_t r1 = 0, r2 = 0;
+    bool     arena_owned = false;   // g1..g3 are TtArena slices: tt_free must not hipFree them
     uint64_t core_elems() const {
         return uint64_t(n1) * r1 + uint64_t(r1) * n2 * r2 + uint64_t(r2) * n3;
     }
 };
 void tt_free(TtCores& c);
+
+// ------------------------------------------------------------------ //
+//  One-time device workspace (2026-11-05)
+// ------------------------------------------------------------------ //
+// While an arena is set on the calling thread, every device allocation inside
+// tt_decompose / tt_reconstruct is a bump-allocated slice of it and every free
+// is a no-op, so a decomposition does no hipMalloc / hipFree at all.  The
+// caller resets `used` before each tensor.  An allocation that does not fit
+// fails (the codec then falls back to raw) -- it never falls back to hipMalloc.
+// No arena set (the default) = the old hipMalloc / hipFree behaviour.
+struct TtArena {
+    uint8_t* base = nullptr;
+    size_t   cap  = 0;
+    size_t   used = 0;
+    size_t   peak = 0;
+    uint64_t overflows = 0;
+};
+void tt_set_arena(TtArena* a);     // this thread; nullptr = off
+// Upper bound on the arena bytes one tt_decompose + tt_reconstruct of these
+// dims at this rank cap can take.
+size_t tt_arena_bytes(const TtDims& dims, uint32_t rank_cap);
+// rocBLAS device workspace for every GEMM shape tt_decompose / tt_reconstruct
+// runs for these dims (rocBLAS size query, no compute).  0 if unavailable.
+size_t tt_blas_workspace_bytes(const TtDims& dims, uint32_t rank_cap);
+// Give the shared rocBLAS handle a FIXED workspace of this size, allocated
+// now; rocBLAS then never allocates or frees during a GEMM (a GEMM that would
+// need more fails instead).  Returns false on error.
+bool tt_blas_fix_workspace(size_t bytes);
 
 // Per-stage timings for tt_decompose, in ms.  tt_decompose is 93% of the
 // exp_avg stream's GPU time, so it gets attributed rather than guessed at.
