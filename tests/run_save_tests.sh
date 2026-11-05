@@ -1,6 +1,7 @@
 #!/bin/bash
-# GPU tests of the writer: the restart round-trip regression test, then the
-# save-failure test.  One GPU:  flux batch -N1 -q pdebug -t 15m tests/run_save_tests.sh <outdir>
+# GPU tests of the writer: the restart round-trip regression test, the
+# save-failure test (1 GPU) and the 2-rank commit test (GPUs 0,1).
+#   flux batch -N1 -q pdebug -t 15m tests/run_save_tests.sh <outdir>
 set -uo pipefail
 T=/usr/WS1/kogiou1/LLM_work/Checkers/tests
 OUT=${1:?outdir}; mkdir -p "$OUT"
@@ -18,5 +19,15 @@ bash "$T/run_restart_roundtrip.sh" "$OUT/roundtrip" || rc=1
 echo "##### save failures: test_save_failures.py"
 python "$T/test_save_failures.py" --out "$OUT/failures" ${V2_DIR:+--v2-dir "$V2_DIR"} > "$OUT/failures.log" 2>&1 || rc=1
 grep -E "^===|^  (PASS|FAIL)|Traceback|Error" "$OUT/failures.log"
+echo "##### 2-rank commit: test_commit_2rank.py (GPUs 0,1; 5 min timeout -- a hang is a FAIL)"
+export HIP_VISIBLE_DEVICES=0,1
+P=$((20000 + RANDOM % 20000))
+for r in 0 1; do
+  RANK=$r LOCAL_RANK=$r WORLD_SIZE=2 MASTER_ADDR=127.0.0.1 MASTER_PORT=$P \
+    timeout 300 python "$T/test_commit_2rank.py" --out "$OUT/commit2" > "$OUT/commit2.rank$r.log" 2>&1 &
+done
+for r in 0 1; do wait -n || rc=1; done
+grep -hE "^===|^  (PASS|FAIL)|Traceback" "$OUT"/commit2.rank*.log
+[ "$(grep -h '^=== 2-rank commit' "$OUT"/commit2.rank*.log | grep -c PASS)" -eq 2 ] || { echo "  FAIL  2-rank commit did not PASS on both ranks"; rc=1; }
 echo "##### ALL: $([ $rc -eq 0 ] && echo PASS || echo FAIL)"
 exit $rc

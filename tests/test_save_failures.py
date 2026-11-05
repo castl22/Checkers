@@ -26,6 +26,9 @@ checkers_scr with SCR off, the way the experiments run.  Cases:
                                      RAW_SIDE; raw: RAW_PASSTHROUGH)
   I  restore of a v2 checkpoint   -> complete (--v2-dir, written by the
                                      previous writer), if given
+  J  retry of B without the fault -> commits: B exists, B.inprogress is gone
+  K  save to an existing name     -> refuses; the existing checkpoint is untouched
+  (B, C, D: the failed save never appears under its real name, only <name>.inprogress)
 
 Exit status 0 = PASS, 1 = FAIL.
 """
@@ -109,19 +112,22 @@ def main():
     os.environ[INJ] = "l2.weight"
     expect_raise("B injected failure, blocking", lambda: cs.compress_and_save("B", EPS, blocking=True),
                  "save FAILED")
-    check(files("B") == [], f"B nothing written for rank 0: {[os.path.basename(f) for f in files('B')]}")
+    check(files("B.inprogress") == [], f"B nothing written for rank 0: {[os.path.basename(f) for f in files('B.inprogress')]}")
+    check(not os.path.exists(os.path.join(a.out, "B")), "B not committed (no B/ folder)")
 
     # C
     cs.compress_and_save("C", EPS, blocking=False)
     expect_raise("C injected failure, non-blocking -> checkpoint_join", cs.checkpoint_join, "save FAILED")
-    check(files("C") == [], "C nothing written for rank 0")
+    check(files("C.inprogress") == [] and not os.path.exists(os.path.join(a.out, "C")),
+          "C nothing written for rank 0, not committed")
     del os.environ[INJ]
 
     # D
-    os.makedirs(os.path.join(a.out, "D"))
-    os.symlink("/dev/full", os.path.join(a.out, "D", "rank_000_exp_avg.cch"))
+    os.makedirs(os.path.join(a.out, "D.inprogress"))
+    os.symlink("/dev/full", os.path.join(a.out, "D.inprogress", "rank_000_exp_avg.cch"))
     expect_raise("D write to a full device", lambda: cs.compress_and_save("D", EPS, blocking=True),
                  "write failed")
+    check(not os.path.exists(os.path.join(a.out, "D")), "D not committed (no D/ folder)")
 
     # E
     mE = cs.compress_and_save("E", EPS, blocking=True)
@@ -168,6 +174,19 @@ def main():
     check(not res.get("missing") and not res.get("warnings") and
           all(restored.get(s) == 4 for s in ("model_state", "master_weights", "exp_avg", "exp_avg_sq")),
           f"G restore of A complete: restored={restored} warnings={len(res.get('warnings') or [])}")
+
+    # J
+    mJ = cs.compress_and_save("B", EPS, blocking=True)
+    check(mJ.get("validated") is True and os.path.isdir(os.path.join(a.out, "B")) and
+          not os.path.exists(os.path.join(a.out, "B.inprogress")) and len(files("B")) == 5,
+          f"J retry of B commits: B/ has {len(files('B'))} files, "
+          f"B.inprogress exists={os.path.exists(os.path.join(a.out, 'B.inprogress'))}")
+
+    # K
+    before = {f: os.stat(f).st_mtime_ns for f in files("A")}
+    expect_raise("K save to an existing name", lambda: cs.compress_and_save("A", EPS, blocking=True),
+                 "already exists")
+    check({f: os.stat(f).st_mtime_ns for f in files("A")} == before, "K existing A untouched")
 
     # H
     H = struct.Struct("<8I d 6Q")

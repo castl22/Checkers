@@ -84,7 +84,7 @@ _S = {
     "min_snr_db": None,  # optional validity gate, see compress_and_save()
     "singleton": False,  # one independent SCR instance per rank (no PMI)
     "expected_tensors": None,  # optional {stream: n} or int, checked by _validate
-    "noscr_dir": None,   # SCR off: where the pending non-blocking save writes
+    "noscr_dir": None,   # SCR off: (tmp_dir, final_dir) of a pending non-blocking save
 }
 
 # Defaults tuned for a node with /dev/shm as the only cache tier.  Every one of
@@ -324,15 +324,59 @@ def _validate(metrics, written):
     return True, ""
 
 
-def _check_noscr(metrics, out_dir):
-    """SCR off: the same checks as _validate, but a failure raises (there is
-    no SCR valid flag to hand it to)."""
-    written = sorted(glob.glob(os.path.join(out_dir, _rank_glob())))
-    valid, why = _validate(metrics, written)
-    if not valid:
-        raise RuntimeError("checkers_scr: checkpoint in %s failed validation on rank %d: %s"
-                           % (out_dir, _S["rank"], why))
+_INPROGRESS = ".inprogress"
+
+
+def _all_ok(ok):
+    """Collective AND of a per-rank flag over torch.distributed (identity if
+    torch.distributed is not initialized)."""
+    import torch
+    import torch.distributed as dist
+    if not (dist.is_available() and dist.is_initialized()):
+        return bool(ok)
+    dev = (torch.device("cuda", torch.cuda.current_device())
+           if torch.cuda.is_available() else torch.device("cpu"))
+    t = torch.tensor([1 if ok else 0], dtype=torch.int32, device=dev)
+    dist.all_reduce(t, op=dist.ReduceOp.MIN)
+    return bool(t.item())
+
+
+def _commit_noscr(metrics, err, tmp_dir, final_dir):
+    """SCR off, collective: every rank validates its own files in tmp_dir;
+    only if ALL ranks are valid does rank 0 rename tmp_dir -> final_dir
+    (2026-11-05).  A failed or partial save therefore never appears under
+    the checkpoint's real name, and a retry simply rewrites tmp_dir.
+
+    err is this rank's exception from the save itself, if any: it is held
+    until after the vote so a rank that failed still takes part in the
+    collectives instead of leaving the others waiting in them.
+    """
+    if err is None:
+        written = sorted(glob.glob(os.path.join(tmp_dir, _rank_glob())))
+        valid, why = _validate(metrics, written)
+    else:
+        valid, why = False, "save raised: %s" % err
+    all_valid = _all_ok(valid)
+    renamed, rename_err = True, None
+    if all_valid and _S["rank"] == 0:
+        try:
+            os.rename(tmp_dir, final_dir)
+        except OSError as exc:
+            renamed, rename_err = False, exc
+    committed = all_valid and _all_ok(renamed)    # the others wait for the rename here
+    if not committed:
+        if err is not None:
+            raise err
+        if not valid:
+            raise RuntimeError("checkers_scr: checkpoint in %s failed validation on rank %d: %s"
+                               % (tmp_dir, _S["rank"], why))
+        if rename_err is not None:
+            raise RuntimeError("checkers_scr: rename %s -> %s failed: %s" % (tmp_dir, final_dir, rename_err))
+        raise RuntimeError("checkers_scr: checkpoint %s NOT committed: another rank's save "
+                           "failed or was invalid (this rank's files in %s were valid)"
+                           % (final_dir, tmp_dir))
     metrics["validated"] = True
+    metrics["dir"] = final_dir
     return metrics
 
 
@@ -505,22 +549,33 @@ def compress_and_save(name, error_bound, targets="all", blocking=True,
                           open and you MUST call checkpoint_join() to close it.
     flags        SCR dataset flags; defaults to FLAG_CHECKPOINT.
     allow_lossless  passed straight to Checkers: True lets an explicit 0
-                 bound store that stream lossless (raw + zstd).
+                 bound store that stream lossless (raw bytes).
 
     Returns the Checkers metrics dict, with an extra "scr" entry once the
     window has closed.
     """
     if not _S["enabled"]:
-        out_dir = os.path.join(_S["prefix"], name)
-        os.makedirs(out_dir, exist_ok=True)
-        metrics = checkers_py.compress_and_save(
-            out_dir, error_bound=error_bound, targets=targets,
-            blocking=blocking, allow_lossless=allow_lossless,
-        )
-        if not blocking:
-            _S["noscr_dir"] = out_dir      # checked by checkpoint_join()
+        # SCR off (2026-11-05): write into <name>.inprogress, rename to <name>
+        # only once every rank's files are complete and valid -- see
+        # _commit_noscr.  Collective.  Never overwrites an existing <name>.
+        final_dir = os.path.join(_S["prefix"], name)
+        tmp_dir = final_dir + _INPROGRESS
+        if os.path.exists(final_dir):
+            raise RuntimeError("checkers_scr: %s already exists -- refusing to overwrite a "
+                               "committed checkpoint" % final_dir)
+        os.makedirs(tmp_dir, exist_ok=True)
+        metrics, err = None, None
+        try:
+            metrics = checkers_py.compress_and_save(
+                tmp_dir, error_bound=error_bound, targets=targets,
+                blocking=blocking, allow_lossless=allow_lossless,
+            )
+        except Exception as exc:          # held until every rank has voted
+            err = exc
+        if not blocking and err is None:
+            _S["noscr_dir"] = (tmp_dir, final_dir)    # committed by checkpoint_join()
             return metrics
-        return _check_noscr(metrics, out_dir)
+        return _commit_noscr(metrics, err, tmp_dir, final_dir)
 
     _require_closed("compress_and_save")
 
@@ -562,9 +617,15 @@ def checkpoint_join():
     Collective, because SCR_Complete_output is.
     """
     if not _S["enabled"]:
-        metrics = checkers_py.checkpoint_join()
-        out_dir, _S["noscr_dir"] = _S["noscr_dir"], None
-        return _check_noscr(metrics, out_dir) if out_dir else metrics
+        pend, _S["noscr_dir"] = _S["noscr_dir"], None
+        metrics, err = None, None
+        try:
+            metrics = checkers_py.checkpoint_join()
+        except Exception as exc:
+            if pend is None:
+                raise
+            err = exc
+        return _commit_noscr(metrics, err, *pend) if pend else metrics
 
     if _S["open_name"] is None:
         raise RuntimeError("checkers_scr: checkpoint_join() with no open "
