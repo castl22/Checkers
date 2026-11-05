@@ -691,6 +691,10 @@ void pg_steps_device(const float* d_rms, uint32_t ng, double eps,
                      double* out_pg_lo, double* out_pg_step,
                      gpu::Stream_t stream) {
     if (ng == 0) { *out_pg_lo = 0.0; *out_pg_step = 0.0; return; }
+    // RAJA runs on its own default stream, which is not ordered after the
+    // caller's non-blocking stream: wait for the producer of the input first
+    // (2026-11-05; same race as reduce_minmax_fp32).
+    CK_GPU_CHECK(gpu::StreamSynchronize(stream));
 
     // pass 1: amax over the per-group RMS (ng is small -- n/group)
     RAJA::ReduceMax<CodecReduce, double> amx(0.0);
@@ -773,7 +777,11 @@ void clamp_floor_fp32(float* d_x, size_t n, float floor, gpu::Stream_t stream) {
 void reduce_quant_error(const int16_t* d_q, const float* d_step, const float* d_ref,
                         size_t n, uint32_t group,
                         double* out_sq_err, double* out_signal,
-                        gpu::Stream_t /*stream*/) {
+                        gpu::Stream_t stream) {
+    // RAJA runs on its own default stream, which is not ordered after the
+    // caller's non-blocking stream: wait for the producer of the input first
+    // (2026-11-05; same race as reduce_minmax_fp32).
+    CK_GPU_CHECK(gpu::StreamSynchronize(stream));
     RAJA::ReduceSum<CodecReduce, double> se(0.0), sg(0.0);
     RAJA::forall<CodecExec>(RAJA::TypedRangeSegment<size_t>(0, n),
         [=] RAJA_HOST_DEVICE (size_t i) {
@@ -789,7 +797,11 @@ void reduce_quant_error(const int16_t* d_q, const float* d_step, const float* d_
 
 void reduce_sq_error_fp32(const float* d_ref, const float* d_test, size_t n,
                           double* out_sq_err, double* out_signal,
-                          gpu::Stream_t /*stream*/) {
+                          gpu::Stream_t stream) {
+    // RAJA runs on its own default stream, which is not ordered after the
+    // caller's non-blocking stream: wait for the producer of the input first
+    // (2026-11-05; same race as reduce_minmax_fp32).
+    CK_GPU_CHECK(gpu::StreamSynchronize(stream));
     RAJA::ReduceSum<CodecReduce, double> se(0.0), sg(0.0);
     RAJA::forall<CodecExec>(RAJA::TypedRangeSegment<size_t>(0, n),
         [=] RAJA_HOST_DEVICE (size_t i) {
@@ -804,7 +816,11 @@ void reduce_sq_error_fp32(const float* d_ref, const float* d_test, size_t n,
 }
 
 void reduce_max_abs_err(const float* d_ref, const float* d_test, size_t n,
-                        double* out_max_abs_err, gpu::Stream_t /*stream*/) {
+                        double* out_max_abs_err, gpu::Stream_t stream) {
+    // RAJA runs on its own default stream, which is not ordered after the
+    // caller's non-blocking stream: wait for the producer of the input first
+    // (2026-11-05; same race as reduce_minmax_fp32).
+    CK_GPU_CHECK(gpu::StreamSynchronize(stream));
     RAJA::ReduceMax<CodecReduce, double> mx(0.0);
     RAJA::forall<CodecExec>(RAJA::TypedRangeSegment<size_t>(0, n),
         [=] RAJA_HOST_DEVICE (size_t i) {
@@ -815,7 +831,11 @@ void reduce_max_abs_err(const float* d_ref, const float* d_test, size_t n,
 }
 
 void reduce_max_rel_err(const float* d_ref, const float* d_test, size_t n,
-                        double* out_max_rel_err, gpu::Stream_t /*stream*/) {
+                        double* out_max_rel_err, gpu::Stream_t stream) {
+    // RAJA runs on its own default stream, which is not ordered after the
+    // caller's non-blocking stream: wait for the producer of the input first
+    // (2026-11-05; same race as reduce_minmax_fp32).
+    CK_GPU_CHECK(gpu::StreamSynchronize(stream));
     RAJA::ReduceMax<CodecReduce, double> mx(0.0);
     RAJA::forall<CodecExec>(RAJA::TypedRangeSegment<size_t>(0, n),
         [=] RAJA_HOST_DEVICE (size_t i) {
@@ -880,9 +900,16 @@ void reduce_minmax_fp32(const float* d_x, size_t n,
         MINMAX_BLOCKS, (n + MINMAX_THREADS - 1) / MINMAX_THREADS);
     k_minmax_partial<<<blocks, MINMAX_THREADS, 0, stream>>>(d_x, n, d_pmin, d_pmax);
 
+    // Read the partials back ON THE SAME STREAM and wait for it.  Until
+    // 2026-11-05 this was a synchronous gpu::Memcpy on the null stream, which
+    // does not wait for a non-blocking stream (the compressor's compute
+    // streams are non-blocking): it could read the PREVIOUS call's partials
+    // from this static scratch -> a wrong residual min/max -> a wrong EQ step
+    // in codec_tt_eq.  That was open bug 7 ("TT nondeterminism").
     float h_min[MINMAX_BLOCKS], h_max[MINMAX_BLOCKS];
-    CK_GPU_CHECK(gpu::Memcpy(h_min, d_pmin, blocks * sizeof(float), gpu::Copy::D2H));
-    CK_GPU_CHECK(gpu::Memcpy(h_max, d_pmax, blocks * sizeof(float), gpu::Copy::D2H));
+    CK_GPU_CHECK(gpu::MemcpyAsync(h_min, d_pmin, blocks * sizeof(float), gpu::Copy::D2H, stream));
+    CK_GPU_CHECK(gpu::MemcpyAsync(h_max, d_pmax, blocks * sizeof(float), gpu::Copy::D2H, stream));
+    CK_GPU_CHECK(gpu::StreamSynchronize(stream));
 
     float mn = h_min[0], mx = h_max[0];
     for (uint32_t i = 1; i < blocks; ++i) {
