@@ -551,27 +551,37 @@ bool tt_decompose(const float* A, const TtDims& dims,
     return true;
 }
 
-bool tt_reconstruct(const TtCores& c, float* A_hat, void* blas, gpu::Stream_t stream) {
+size_t tt_reconstruct_ws_floats(const TtCores& c) {
+    return static_cast<size_t>(c.n1) * c.n2 * c.r2;
+}
+
+bool tt_reconstruct_ws(const TtCores& c, float* A_hat, float* t1_ws, void* blas, gpu::Stream_t stream) {
     auto h = reinterpret_cast<rocblas_handle>(blas);
     auto s = reinterpret_cast<hipStream_t>(stream);
     rocblas_set_stream(h, s);
     const uint32_t n1 = c.n1, n2 = c.n2, n3 = c.n3, r1 = c.r1, r2 = c.r2;
-    if (!n1 || !n2 || !n3 || !r1 || !r2) return false;
-
-    Dev T1;
-    if (!T1.alloc(sizeof(float) * (size_t)n1 * n2 * r2)) return false;
+    if (!n1 || !n2 || !n3 || !r1 || !r2 || !t1_ws) return false;
     // T1 = G1(n1 x r1) * reshape(G2, r1 x (n2*r2))   -> (n1 x n2*r2)
     if (!gemm_rm(h, false, false, (int)n1, (int)((uint64_t)n2 * r2), (int)r1,
-                 1.f, c.g1, c.g2, 0.f, T1.f())) return false;
+                 1.f, c.g1, c.g2, 0.f, t1_ws)) return false;
     // A_hat = reshape(T1, (n1*n2) x r2) * G3(r2 x n3)  -> (n1*n2 x n3) = P
-    if (!gemm_rm(h, false, false, (int)((uint64_t)n1 * n2), (int)n3, (int)r2,
-                 1.f, T1.f(), c.g3, 0.f, A_hat)) return false;
-    return hipStreamSynchronize(s) == hipSuccess;
+    return gemm_rm(h, false, false, (int)((uint64_t)n1 * n2), (int)n3, (int)r2,
+                   1.f, t1_ws, c.g3, 0.f, A_hat);
+}
+
+bool tt_reconstruct(const TtCores& c, float* A_hat, void* blas, gpu::Stream_t stream) {
+    if (!c.n1 || !c.n2 || !c.n3 || !c.r1 || !c.r2) return false;
+    Dev T1;
+    if (!T1.alloc(sizeof(float) * tt_reconstruct_ws_floats(c))) return false;
+    if (!tt_reconstruct_ws(c, A_hat, T1.f(), blas, stream)) return false;
+    return hipStreamSynchronize(reinterpret_cast<hipStream_t>(stream)) == hipSuccess;
 }
 #else  // no rocBLAS -> codec disabled, caller falls back
 bool tt_decompose(const float*, const TtDims&, uint32_t, double,
                   TtCores&, void*, gpu::Stream_t) { return false; }
 bool tt_reconstruct(const TtCores&, float*, void*, gpu::Stream_t) { return false; }
+size_t tt_reconstruct_ws_floats(const TtCores&) { return 0; }
+bool tt_reconstruct_ws(const TtCores&, float*, float*, void*, gpu::Stream_t) { return false; }
 #endif
 
 } // namespace tt

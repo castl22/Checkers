@@ -10,6 +10,9 @@
 #include "checkers/logging.hpp"
 
 #include <algorithm>
+#include <type_traits>
+#include <memory>
+#include <array>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -84,10 +87,74 @@ bool read_stream_file(const std::string& path, LoadedStream& out, std::string& e
 }
 
 // --------------------------------------------------------------------------
+// DecodeScratch (2026-11-05): every GPU buffer the decoders need, allocated
+// ONCE per restore -- sized by a pre-pass over all index entries for the
+// largest tensor -- and reused for every tensor, plus one non-blocking stream.
+// Per tensor there is no hipMalloc / hipFree and no hipDeviceSynchronize, only
+// async copies + kernels on that stream and one hipStreamSynchronize.
+// (Before: 8-13 hipMalloc + hipFree per tensor; a restore hung inside one of
+// those hipFree's with the GPU idle -- exp1, and the 11-05 benchmark.)
+// --------------------------------------------------------------------------
+struct DecodeNeed {
+    size_t fp32 = 0, R = 0, zz = 0, step = 1, over = 0, nblk = 0, packed = 1;
+    size_t core = 0, g1 = 0, g2 = 0, g3 = 0, t1 = 0;      // TT
+};
+
+struct DecodeScratch {
+    gpu::Stream_t s = nullptr;
+    float    *fp32 = nullptr, *R = nullptr, *step = nullptr, *ovv = nullptr;
+    float    *g1 = nullptr, *g2 = nullptr, *g3 = nullptr, *t1 = nullptr;
+    uint16_t *zz = nullptr;
+    uint32_t *ovi = nullptr;
+    uint8_t  *w = nullptr, *pk = nullptr, *core = nullptr;
+    uint64_t *off = nullptr;
+    DecodeNeed cap;
+    size_t   bytes = 0;
+
+    std::string alloc(const DecodeNeed& n) {
+        cap = n;
+        std::string err;
+        auto one = [&](auto*& p, size_t count, size_t elem) {
+            if (!err.empty()) return;
+            void* q = nullptr;
+            const size_t nb = std::max<size_t>(count * elem, 1);
+            if (gpu::Malloc(&q, nb) != gpu::Success) {
+                err = "restore scratch: device alloc of " + std::to_string(nb) + " B failed";
+                return;
+            }
+            p = static_cast<std::remove_reference_t<decltype(p)>>(q);
+            bytes += nb;
+        };
+        one(fp32, n.fp32, sizeof(float));   one(R, n.R, sizeof(float));
+        one(step, n.step, sizeof(float));   one(ovv, n.over, sizeof(float));
+        one(ovi, n.over, sizeof(uint32_t)); one(zz, n.zz, sizeof(uint16_t));
+        one(w, n.nblk, 1);                  one(off, n.nblk, sizeof(uint64_t));
+        one(pk, n.packed, 1);               one(core, n.core, 1);
+        one(g1, n.g1, sizeof(float));       one(g2, n.g2, sizeof(float));
+        one(g3, n.g3, sizeof(float));       one(t1, n.t1, sizeof(float));
+        if (err.empty() && gpu::StreamCreate(&s) != gpu::Success) {
+            s = nullptr; err = "restore scratch: stream create failed";
+        }
+        return err;
+    }
+    // once, at the end of the restore
+    void release() {
+        if (s) { (void)gpu::StreamSynchronize(s); (void)gpu::StreamDestroy(s); s = nullptr; }
+        for (void* p : {(void*)fp32, (void*)R, (void*)step, (void*)ovv, (void*)ovi, (void*)zz,
+                        (void*)w, (void*)off, (void*)pk, (void*)core, (void*)g1, (void*)g2,
+                        (void*)g3, (void*)t1})
+            if (p) (void)gpu::Free(p);
+        fp32 = R = step = ovv = g1 = g2 = g3 = t1 = nullptr;
+        zz = nullptr; ovi = nullptr; w = pk = core = nullptr; off = nullptr;
+    }
+    ~DecodeScratch() { release(); }
+};
+
+// --------------------------------------------------------------------------
 // RawZstd (or raw passthrough): payload bytes -> live tensor.
 // --------------------------------------------------------------------------
 std::string refill_raw(const CchIndexEntry& e, const uint8_t* payload,
-                       const struct ShardTensor& st) {
+                       const struct ShardTensor& st, DecodeScratch& S) {
     std::vector<uint8_t> raw;
     if (e.flags & CCH_FLAG_ZSTD) raw = zstd_decompress(payload, e.data_size, e.orig_bytes);
     else                          raw.assign(payload, payload + e.data_size);
@@ -96,7 +163,8 @@ std::string refill_raw(const CchIndexEntry& e, const uint8_t* payload,
         return "size mismatch (file " + std::to_string(raw.size()) + " vs live " +
                std::to_string(st.byte_size) + ")";
 
-    gpu::Error_t rc = gpu::Memcpy(st.device_ptr, raw.data(), st.byte_size, gpu::Copy::H2D);
+    gpu::Error_t rc = gpu::MemcpyAsync(st.device_ptr, raw.data(), st.byte_size, gpu::Copy::H2D, S.s);
+    if (rc == gpu::Success) rc = gpu::StreamSynchronize(S.s);   // before `raw` goes away
     if (rc != gpu::Success) return std::string("H2D failed: ") + gpu::ErrorString(rc);
     return {};
 }
@@ -107,7 +175,7 @@ std::string refill_raw(const CchIndexEntry& e, const uint8_t* payload,
 // --------------------------------------------------------------------------
 std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
                             const uint8_t* payload, const uint8_t* aux,
-                            const struct ShardTensor& st) {
+                            const struct ShardTensor& st, DecodeScratch& S) {
     const size_t   n  = e.num_elements;
     const uint32_t ng = static_cast<uint32_t>(e.n_groups);
     const uint32_t no = static_cast<uint32_t>(e.n_over);
@@ -178,46 +246,25 @@ std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
         std::memcpy(&ovv[k], over + k * 8u + 4, 4);
     }
 
-    // --- GPU decode ---
-    void *d_zz = nullptr, *d_step = nullptr, *d_fp32 = nullptr, *d_ovi = nullptr, *d_ovv = nullptr;
-    void *d_w = nullptr, *d_off = nullptr, *d_pk = nullptr;
-    auto cleanup = [&]() {
-        if (d_w)    (void)gpu::Free(d_w);
-        if (d_off)  (void)gpu::Free(d_off);
-        if (d_pk)   (void)gpu::Free(d_pk);
-        if (d_zz)   (void)gpu::Free(d_zz);
-        if (d_step) (void)gpu::Free(d_step);
-        if (d_fp32) (void)gpu::Free(d_fp32);
-        if (d_ovi)  (void)gpu::Free(d_ovi);
-        if (d_ovv)  (void)gpu::Free(d_ovv);
-    };
-
-    if (gpu::Malloc(&d_zz,   n * sizeof(uint16_t)) != gpu::Success ||
-        gpu::Malloc(&d_step, ng * sizeof(float))   != gpu::Success ||
-        gpu::Malloc(&d_fp32, n * sizeof(float))    != gpu::Success ||
-        (no && gpu::Malloc(&d_ovi, no * sizeof(uint32_t)) != gpu::Success) ||
-        (no && gpu::Malloc(&d_ovv, no * sizeof(float))    != gpu::Success)) {
-        cleanup();
-        return "device alloc failed";
-    }
-
-    gpu::Stream_t s = nullptr;   // default stream is fine for the one-shot restart path
-    (void)gpu::Memcpy(d_step, d_use.data(), ng * sizeof(float),   gpu::Copy::H2D);
+    // --- GPU decode, in the restore's scratch (no per-tensor alloc/free) ---
+    if (n > S.cap.fp32 || ng > S.cap.step || no > S.cap.over ||
+        (bitpacked && (nblk > S.cap.nblk || packed_n > S.cap.packed)) ||
+        (!bitpacked && n > S.cap.zz))
+        return "decode scratch too small (pre-pass missed this tensor)";
+    void *d_zz = S.zz, *d_step = S.step, *d_fp32 = S.fp32, *d_ovi = S.ovi, *d_ovv = S.ovv;
+    void *d_w = S.w, *d_off = S.off, *d_pk = S.pk;
+    gpu::Stream_t s = S.s;
+    (void)gpu::MemcpyAsync(d_step, d_use.data(), ng * sizeof(float), gpu::Copy::H2D, s);
     if (no) {
-        (void)gpu::Memcpy(d_ovi, ovi.data(), no * sizeof(uint32_t), gpu::Copy::H2D);
-        (void)gpu::Memcpy(d_ovv, ovv.data(), no * sizeof(float),    gpu::Copy::H2D);
+        (void)gpu::MemcpyAsync(d_ovi, ovi.data(), no * sizeof(uint32_t), gpu::Copy::H2D, s);
+        (void)gpu::MemcpyAsync(d_ovv, ovv.data(), no * sizeof(float),    gpu::Copy::H2D, s);
     }
 
     if (bitpacked) {
-        if (gpu::Malloc(&d_w, nblk) != gpu::Success ||
-            gpu::Malloc(&d_off, (size_t)nblk * sizeof(uint64_t)) != gpu::Success ||
-            gpu::Malloc(&d_pk, std::max<size_t>(packed_n, 1)) != gpu::Success) {
-            cleanup(); return "bitpack device alloc failed";
-        }
-        (void)gpu::Memcpy(d_w, bw.data(), nblk, gpu::Copy::H2D);
-        (void)gpu::Memcpy(d_off, boff.data(), (size_t)nblk * sizeof(uint64_t), gpu::Copy::H2D);
+        (void)gpu::MemcpyAsync(d_w, bw.data(), nblk, gpu::Copy::H2D, s);
+        (void)gpu::MemcpyAsync(d_off, boff.data(), (size_t)nblk * sizeof(uint64_t), gpu::Copy::H2D, s);
         if (packed_n)
-            (void)gpu::Memcpy(d_pk, packed_p, packed_n, gpu::Copy::H2D);
+            (void)gpu::MemcpyAsync(d_pk, packed_p, packed_n, gpu::Copy::H2D, s);
         // log_domain=0 on purpose: the exp is applied AFTER scatter_overflow
         // below, so the overflow values go through it too -- matching the
         // encoder, which captured them in the log domain.
@@ -227,7 +274,7 @@ std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
                                static_cast<const float*>(d_step),
                                static_cast<float*>(d_fp32), nblk, 0, s);
     } else {
-        (void)gpu::Memcpy(d_zz, zz.data(), n * sizeof(uint16_t), gpu::Copy::H2D);
+        (void)gpu::MemcpyAsync(d_zz, zz.data(), n * sizeof(uint16_t), gpu::Copy::H2D, s);
         codec::unzigzag_inplace(static_cast<uint16_t*>(d_zz), n, s);
         codec::dequant_pergroup(static_cast<const int16_t*>(d_zz), n, group,
                                 static_cast<const float*>(d_step),
@@ -255,13 +302,13 @@ std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
     }
 
     if (st.byte_size != n * dtype_element_size(dt)) {
-        cleanup();
+        (void)gpu::StreamSynchronize(s);
         return "live tensor byte size mismatch";
     }
     codec::contract_from_fp32(static_cast<const float*>(d_fp32), dt, n, st.device_ptr, s);
 
-    gpu::Error_t rc = gpu::DeviceSynchronize();
-    cleanup();
+    // this stream only; also keeps the host buffers above alive long enough
+    gpu::Error_t rc = gpu::StreamSynchronize(s);
     if (rc != gpu::Success) return std::string("decode sync failed: ") + gpu::ErrorString(rc);
     return {};
 }
@@ -273,7 +320,7 @@ std::string refill_pergroup(const CchIndexEntry& e, uint32_t group,
 //   payload (decompressed) = uint16 zigzag(EQ quant index)[n_elems]
 // --------------------------------------------------------------------------
 std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
-                         const uint8_t* aux, const struct ShardTensor& st) {
+                         const uint8_t* aux, const struct ShardTensor& st, DecodeScratch& S) {
     const DataType dt = static_cast<DataType>(e.dtype);
     if (dt != DataType::Float32) return "tt_eq: non-fp32 live tensor";
 
@@ -355,40 +402,28 @@ std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
         if (zz.size() < L * sizeof(uint16_t)) return "tt_eq: payload truncated";
     }
 
-    // ---- GPU decode ----
-    void *d_core = nullptr, *d_g1 = nullptr, *d_g2 = nullptr, *d_g3 = nullptr;
-    void *d_Ahat = nullptr, *d_zz = nullptr, *d_R = nullptr, *d_step = nullptr;
-    void *d_ovi = nullptr, *d_ovv = nullptr;
-    void *d_tw = nullptr, *d_toff = nullptr, *d_tpk = nullptr;
-    auto cleanup = [&]() {
-        for (void* p : {d_core, d_g1, d_g2, d_g3, d_Ahat, d_zz, d_R, d_step, d_ovi,
-                        d_ovv, d_tw, d_toff, d_tpk})
-            if (p) (void)gpu::Free(p);
-    };
-    if (gpu::Malloc(&d_core, core_bytes)          != gpu::Success ||
-        gpu::Malloc(&d_g1,  e1 * sizeof(float))   != gpu::Success ||
-        gpu::Malloc(&d_g2,  e2 * sizeof(float))   != gpu::Success ||
-        gpu::Malloc(&d_g3,  e3 * sizeof(float))   != gpu::Success ||
-        gpu::Malloc(&d_Ahat, P * sizeof(float))   != gpu::Success ||
-        gpu::Malloc(&d_zz,  L * sizeof(uint16_t)) != gpu::Success ||
-        gpu::Malloc(&d_R,   L * sizeof(float))    != gpu::Success ||
-        gpu::Malloc(&d_step, sizeof(float))       != gpu::Success ||
-        (no && gpu::Malloc(&d_ovi, no * sizeof(uint32_t)) != gpu::Success) ||
-        (no && gpu::Malloc(&d_ovv, no * sizeof(float))    != gpu::Success)) {
-        cleanup();
-        return "tt_eq: device alloc failed";
-    }
+    // ---- GPU decode, in the restore's scratch (no per-tensor alloc/free) ----
+    const size_t t1n = static_cast<size_t>(n1) * n2 * r2;
+    if (core_bytes > S.cap.core || e1 > S.cap.g1 || e2 > S.cap.g2 || e3 > S.cap.g3 ||
+        P > S.cap.fp32 || L > S.cap.R || no > S.cap.over || t1n > S.cap.t1 ||
+        (tt_bitpacked && (tt_nblk > S.cap.nblk || tt_packed_n > S.cap.packed)) ||
+        (!tt_bitpacked && L > S.cap.zz))
+        return "tt_eq: decode scratch too small (pre-pass missed this tensor)";
+    void *d_core = S.core, *d_g1 = S.g1, *d_g2 = S.g2, *d_g3 = S.g3;
+    void *d_Ahat = S.fp32, *d_zz = S.zz, *d_R = S.R, *d_step = S.step;
+    void *d_ovi = S.ovi, *d_ovv = S.ovv;
+    void *d_tw = S.w, *d_toff = S.off, *d_tpk = S.pk;
 
-    gpu::Stream_t s = nullptr;
-    (void)gpu::Memcpy(d_core, core_p, core_bytes, gpu::Copy::H2D);
+    gpu::Stream_t s = S.s;
+    (void)gpu::MemcpyAsync(d_core, core_p, core_bytes, gpu::Copy::H2D, s);
     // NOT here: on the bit-pack path `zz` is empty, so an unconditional copy of
     // L*2 bytes from it reads off the end of the vector.  The payload upload
     // belongs inside the branch below, where its form is known.
     const float Df = static_cast<float>(th.d_step);
-    (void)gpu::Memcpy(d_step, &Df, sizeof(float), gpu::Copy::H2D);
+    (void)gpu::MemcpyAsync(d_step, &Df, sizeof(float), gpu::Copy::H2D, s);
     if (no) {
-        (void)gpu::Memcpy(d_ovi, ovi.data(), no * sizeof(uint32_t), gpu::Copy::H2D);
-        (void)gpu::Memcpy(d_ovv, ovv.data(), no * sizeof(float),    gpu::Copy::H2D);
+        (void)gpu::MemcpyAsync(d_ovi, ovi.data(), no * sizeof(uint32_t), gpu::Copy::H2D, s);
+        (void)gpu::MemcpyAsync(d_ovv, ovv.data(), no * sizeof(float),    gpu::Copy::H2D, s);
     }
 
     // cores fp16 -> fp32
@@ -411,25 +446,19 @@ std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
 
     void* blas = tt::blas_handle();
     tt::blas_set_stream(blas, s);
-    if (!tt::tt_reconstruct(cores, static_cast<float*>(d_Ahat), blas, s)) {
-        cores = tt::TtCores{};         // g1..g3 freed by cleanup, not tt_free
-        cleanup();
+    if (!tt::tt_reconstruct_ws(cores, static_cast<float*>(d_Ahat), S.t1, blas, s)) {
+        (void)gpu::StreamSynchronize(s);
         return "tt_eq: tt_reconstruct failed";
     }
-    cores = tt::TtCores{};             // detach; cleanup() owns d_g1..d_g3
+    cores = tt::TtCores{};             // scratch-owned; never tt_free'd
 
     // residual: unpack/unzigzag -> dequant (single global step) -> scatter overflow
     if (tt_bitpacked) {
-        if (gpu::Malloc(&d_tw, tt_nblk) != gpu::Success ||
-            gpu::Malloc(&d_toff, (size_t)tt_nblk * sizeof(uint64_t)) != gpu::Success ||
-            gpu::Malloc(&d_tpk, std::max<size_t>(tt_packed_n, 1)) != gpu::Success) {
-            cleanup(); return "tt_eq: bitpack device alloc failed";
-        }
-        (void)gpu::Memcpy(d_tw, tbw.data(), tt_nblk, gpu::Copy::H2D);
-        (void)gpu::Memcpy(d_toff, tboff.data(), (size_t)tt_nblk * sizeof(uint64_t),
-                          gpu::Copy::H2D);
+        (void)gpu::MemcpyAsync(d_tw, tbw.data(), tt_nblk, gpu::Copy::H2D, s);
+        (void)gpu::MemcpyAsync(d_toff, tboff.data(), (size_t)tt_nblk * sizeof(uint64_t),
+                               gpu::Copy::H2D, s);
         if (tt_packed_n)
-            (void)gpu::Memcpy(d_tpk, tt_packed_p, tt_packed_n, gpu::Copy::H2D);
+            (void)gpu::MemcpyAsync(d_tpk, tt_packed_p, tt_packed_n, gpu::Copy::H2D, s);
         codec::bitpack_dequant(static_cast<const uint8_t*>(d_tpk),
                                static_cast<const uint8_t*>(d_tw),
                                static_cast<const uint64_t*>(d_toff), L,
@@ -437,7 +466,7 @@ std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
                                static_cast<const float*>(d_step),
                                static_cast<float*>(d_R), tt_nblk, 0, s);
     } else {
-        (void)gpu::Memcpy(d_zz, zz.data(), L * sizeof(uint16_t), gpu::Copy::H2D);
+        (void)gpu::MemcpyAsync(d_zz, zz.data(), L * sizeof(uint16_t), gpu::Copy::H2D, s);
         codec::unzigzag_inplace(static_cast<uint16_t*>(d_zz), L, s);
         codec::dequant_pergroup(static_cast<const int16_t*>(d_zz), L, static_cast<uint32_t>(L),
                                 static_cast<const float*>(d_step), static_cast<float*>(d_R), s);
@@ -452,8 +481,7 @@ std::string refill_tt_eq(const CchIndexEntry& e, const uint8_t* payload,
                     static_cast<float*>(d_Ahat), L, s);
     codec::contract_from_fp32(static_cast<const float*>(d_Ahat), dt, L, st.device_ptr, s);
 
-    gpu::Error_t rc = gpu::DeviceSynchronize();
-    cleanup();
+    gpu::Error_t rc = gpu::StreamSynchronize(s);   // this stream only
     if (rc != gpu::Success) return std::string("tt_eq: decode sync failed: ") + gpu::ErrorString(rc);
     return {};
 }
@@ -476,29 +504,85 @@ py::dict restart_apply(MemoryManager&              mgr,
     py::list warnings;
     uint64_t total_restored = 0;
 
+    // ---- pass 1: open every target stream, read header + index, and size the
+    // decode scratch for the largest tensor of each kind ----
+    std::array<std::unique_ptr<LoadedStream>, tracked_tensor_category_count> streams;
+    DecodeNeed need;
+    {
+        std::vector<uint8_t> tmp;
+        for (int c = 0; c < static_cast<int>(tracked_tensor_category_count); ++c) {
+            if ((targets & (1u << c)) == 0u) continue;
+            const char* sname = tensor_category_name(static_cast<TensorCategory>(c));
+            const std::string path = input_dir + "/rank_" + rankbuf + "_" + sname + ".cch";
+            if (!fs::exists(path)) {
+                missing.append(py::str(sname));
+                if (logger) logger->log_message(std::string("[restart] no file for stream '") +
+                    sname + "' (" + path + ") -- expected from a framework-native checkpoint");
+                continue;
+            }
+            auto ls = std::make_unique<LoadedStream>();
+            std::string err;
+            if (!read_stream_file(path, *ls, err)) {
+                warnings.append(py::str(std::string(sname) + ": " + err));
+                if (logger) logger->log_message("[restart] stream '" + std::string(sname) +
+                    "' unreadable: " + err);
+                continue;
+            }
+            for (const auto& e : ls->index) {
+                const size_t n = static_cast<size_t>(e.num_elements);
+                const size_t nblk = (n + codec::BITPACK_BLOCK - 1) / codec::BITPACK_BLOCK;
+                const bool bp = (e.flags & CCH_FLAG_BITPACK) != 0;
+                auto mx = [](size_t& a, size_t b) { a = std::max(a, b); };
+                if (e.codec_id == static_cast<uint8_t>(CodecId::RmsRelPgQuant) ||
+                    e.codec_id == static_cast<uint8_t>(CodecId::LogPwRelQuant) ||
+                    e.codec_id == static_cast<uint8_t>(CodecId::RmsRelGlobalQuant)) {
+                    mx(need.fp32, n); mx(need.step, e.n_groups); mx(need.over, e.n_over);
+                    if (bp) { mx(need.nblk, nblk); mx(need.packed, e.data_size); }
+                    else      mx(need.zz, n);
+                } else if (e.codec_id == static_cast<uint8_t>(CodecId::TtEqResidual)) {
+                    // the TtHeader (dims, ranks, overflow count) is at the front of aux
+                    if (!read_data(*ls, e.aux_offset, e.aux_size, tmp)) continue;
+                    std::vector<uint8_t> ax;
+                    if (e.flags & CCH_FLAG_RAW_SIDE) ax = tmp;
+                    else {
+                        size_t exact = static_cast<size_t>(e.pg_lo);
+                        if (exact == 0) exact = sizeof(TtHeader) + static_cast<size_t>(e.n_groups) * 2u
+                                              + static_cast<size_t>(e.n_over) * 8u;
+                        try { ax = zstd_decompress(tmp.data(), tmp.size(), exact); } catch (...) { continue; }
+                    }
+                    if (ax.size() < sizeof(TtHeader)) continue;
+                    TtHeader th{}; std::memcpy(&th, ax.data(), sizeof(TtHeader));
+                    if (th.magic != TTEQ_MAGIC) continue;
+                    const size_t L = th.n_elems, P = static_cast<size_t>(th.n1) * th.n2 * th.n3;
+                    const size_t e1 = static_cast<size_t>(th.n1) * th.r1;
+                    const size_t e2 = static_cast<size_t>(th.r1) * th.n2 * th.r2;
+                    const size_t e3 = static_cast<size_t>(th.r2) * th.n3;
+                    const size_t lb = (L + codec::BITPACK_BLOCK - 1) / codec::BITPACK_BLOCK;
+                    mx(need.fp32, P); mx(need.R, L); mx(need.over, th.n_over);
+                    mx(need.core, (e1 + e2 + e3) * (th.core_f16 ? 2u : 4u));
+                    mx(need.g1, e1); mx(need.g2, e2); mx(need.g3, e3);
+                    mx(need.t1, static_cast<size_t>(th.n1) * th.n2 * th.r2);
+                    if (bp) { mx(need.nblk, lb); mx(need.packed, e.data_size); }
+                    else      mx(need.zz, L);
+                }
+            }
+            streams[c] = std::move(ls);
+        }
+    }
+    DecodeScratch S;
+    {
+        const std::string aerr = S.alloc(need);
+        if (!aerr.empty()) throw std::runtime_error("[restart] " + aerr);
+        if (logger) logger->log_message("[restart] decode scratch allocated once: " +
+            std::to_string(S.bytes) + " B (largest tensor: " + std::to_string(need.fp32) + " fp32 elems)");
+    }
+
+    // ---- pass 2: decode every tensor into the scratch, then the live tensor ----
     for (int c = 0; c < static_cast<int>(tracked_tensor_category_count); ++c) {
         const uint32_t bit = 1u << c;
-        if ((targets & bit) == 0u) continue;
-
-        const auto  cat   = static_cast<TensorCategory>(c);
-        const char* sname = tensor_category_name(cat);
-        const std::string path = input_dir + "/rank_" + rankbuf + "_" + sname + ".cch";
-
-        if (!fs::exists(path)) {
-            missing.append(py::str(sname));
-            if (logger) logger->log_message(std::string("[restart] no file for stream '") +
-                sname + "' (" + path + ") -- expected from a framework-native checkpoint");
-            continue;
-        }
-
-        LoadedStream ls;
-        std::string err;
-        if (!read_stream_file(path, ls, err)) {
-            warnings.append(py::str(std::string(sname) + ": " + err));
-            if (logger) logger->log_message("[restart] stream '" + std::string(sname) +
-                "' unreadable: " + err);
-            continue;
-        }
+        if (!streams[c]) continue;
+        const char* sname = tensor_category_name(static_cast<TensorCategory>(c));
+        LoadedStream& ls = *streams[c];
 
         std::unordered_map<std::string, const CchIndexEntry*> by_name;
         by_name.reserve(ls.index.size());
@@ -534,11 +618,11 @@ py::dict restart_apply(MemoryManager&              mgr,
                 if (e.codec_id == static_cast<uint8_t>(CodecId::RmsRelPgQuant)     ||
                     e.codec_id == static_cast<uint8_t>(CodecId::LogPwRelQuant)     ||
                     e.codec_id == static_cast<uint8_t>(CodecId::RmsRelGlobalQuant))
-                    werr = refill_pergroup(e, ls.header.group_size, payload, aux, stv);
+                    werr = refill_pergroup(e, ls.header.group_size, payload, aux, stv, S);
                 else if (e.codec_id == static_cast<uint8_t>(CodecId::TtEqResidual))
-                    werr = refill_tt_eq(e, payload, aux, stv);
+                    werr = refill_tt_eq(e, payload, aux, stv, S);
                 else
-                    werr = refill_raw(e, payload, stv);
+                    werr = refill_raw(e, payload, stv, S);
             } catch (const std::exception& ex) {
                 werr = ex.what();
             }
@@ -550,13 +634,14 @@ py::dict restart_apply(MemoryManager&              mgr,
             ++n_ok;
         }
 
-        (void)gpu::DeviceSynchronize();
+        (void)gpu::StreamSynchronize(S.s);
         restored[py::str(sname)] = n_ok;
         total_restored += n_ok;
         if (logger) logger->log_message("[restart] stream '" + std::string(sname) +
             "' refilled " + std::to_string(n_ok) + "/" + std::to_string(ls.index.size()) + " tensors");
     }
 
+    S.release();             // the restore's only frees
     py::dict out;
     out["rank"]           = rank_u;
     out["input_dir"]      = input_dir;

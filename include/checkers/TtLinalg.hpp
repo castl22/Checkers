@@ -84,5 +84,13 @@ bool tt_decompose(const float* A, const TtDims& dims,
 bool tt_reconstruct(const TtCores& c, float* A_hat,
                     void* blas, gpu::Stream_t stream);
 
+// Same, with the n1*n2*r2-float intermediate in caller-owned device memory
+// (t1_ws), and NO allocation, free or synchronization: the caller syncs the
+// stream.  For the restore path, which must not hipMalloc/hipFree per tensor
+// (2026-11-05: a hipFree hung there with the GPU idle).
+size_t tt_reconstruct_ws_floats(const TtCores& c);   // n1 * n2 * r2
+bool tt_reconstruct_ws(const TtCores& c, float* A_hat, float* t1_ws,
+                       void* blas, gpu::Stream_t stream);
+
 } // namespace tt
 } // namespace checkers
